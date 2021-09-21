@@ -1,13 +1,8 @@
 package ssh
 
 import (
-	"errors"
 	"github.com/discoriver/massh"
 	"golang.org/x/crypto/ssh"
-)
-
-var (
-	ErrAuthIsAlreadySet = errors.New("auth method is already set")
 )
 
 type OmniSSHConfig struct {
@@ -20,7 +15,6 @@ func (c *OmniSSHConfig) Stream() error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
