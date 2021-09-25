@@ -15,6 +15,7 @@ func (c *OmniSSHConfig) Stream() error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
