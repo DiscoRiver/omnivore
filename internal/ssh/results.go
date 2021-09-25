@@ -2,7 +2,9 @@ package ssh
 
 import (
 	"errors"
+	"fmt"
 	"github.com/discoriver/massh"
+	"github.com/discoriver/omnivore/internal/log"
 )
 
 var (
@@ -34,6 +36,13 @@ type StreamCycle struct {
 	cyclePtrMap map[string]map[string]struct{}
 }
 
+func newStreamCycle(rc chan massh.Result, numHosts int) *StreamCycle {
+	ss := &StreamCycle{}
+	ss.Initialise()
+	ss.populateResultsMap(rc, numHosts)
+	return ss
+}
+
 // Initialise sets adds pending, completed, failed, and slow host pointers to a relevant map var for a specific StreamCycle.
 func (s *StreamCycle) Initialise() {
 	// Initialise map in struct
@@ -49,6 +58,8 @@ func (s *StreamCycle) Initialise() {
 	s.cyclePtrMap[slowHostMapLoc] = s.SlowHosts
 
 	s.initialised = true
+
+	log.Info.Println("StreamCycle was initialised.")
 }
 
 func (s *StreamCycle) isInitialised() bool {
@@ -67,6 +78,8 @@ func (s *StreamCycle) populateResultsMap(ch chan massh.Result, numHosts int) err
 			s.HostsResultMap[result.Host] = result
 		default:
 			if len(s.HostsResultMap) == numHosts {
+				log.Info.Printf(fmt.Sprintf("StreamCycle HostsResultMap populated with %d hosts.", len(s.HostsResultMap)))
+
 				return nil
 			}
 		}

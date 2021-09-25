@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"github.com/discoriver/massh"
+	"github.com/discoriver/omnivore/internal/log"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -10,13 +11,17 @@ type OmniSSHConfig struct {
 	StreamChan chan massh.Result
 }
 
-func (c *OmniSSHConfig) Stream() error {
+// Stream executes work contained in the massh.Config, and returns a StreamCycle for monitoring output and status.
+func (c *OmniSSHConfig) Stream() (*StreamCycle, error) {
 	err := c.Config.Stream(c.StreamChan)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	log.Info.Println("Massh Streaming started successfully.")
+
+	ss := newStreamCycle(c.StreamChan, len(c.Config.Hosts))
+	return ss, nil
 }
 
 func (c *OmniSSHConfig) AddHosts(h []string) {
