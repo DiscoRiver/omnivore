@@ -10,6 +10,14 @@ import (
 	"time"
 )
 
+var (
+	testHosts = map[string]struct{}{
+		"192.168.1.130": struct{}{},
+		"192.168.1.125": struct{}{},
+		"192.168.1.129": struct{}{},
+		"192.168.1.212": struct{}{},
+	}
+)
 // TestStreamWithOutput ensures we can initiate and stream the massh stdout channels when initiated via the OmniSSHConfig
 // funcs.
 func TestStreamWithOutput(t *testing.T) {
@@ -31,7 +39,7 @@ func TestStreamWithOutput(t *testing.T) {
 
 	conf.Config = &massh.Config{
 		// In this example I was testing with two working hosts, and two non-existent IPs.
-		Hosts:      []string{"192.168.1.130", "192.168.1.125", "192.168.1.129", "192.168.1.212"},
+		Hosts:      testHosts,
 		SSHConfig:  sshc,
 		Job:        j,
 		WorkerPool: 10,
