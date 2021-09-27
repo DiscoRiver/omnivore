@@ -10,19 +10,19 @@ import (
 
 var (
 	// Config keys.
-	HostsCommandConfigKey ="omni.HostsCommand"
+	HostsCommandConfigKey     = "omni.HostsCommand"
 	HostsCommandArgsConfigKey = "omni.HostsCommandArgs"
 
-	BastionHostConfigKey = "omni.BastionHost"
-	BastionHostCommandConfigKey = "omni.BastionHostCommand"
+	BastionHostConfigKey            = "omni.BastionHost"
+	BastionHostCommandConfigKey     = "omni.BastionHostCommand"
 	BastionHostCommandArgsConfigKey = "omni.BastionHostCommandArgs"
 
-	UsernameConfigKey = "omni.Username"
-	UsernameCommandConfigKey = "omni.UsernameCommand"
+	UsernameConfigKey            = "omni.Username"
+	UsernameCommandConfigKey     = "omni.UsernameCommand"
 	UsernameCommandArgsConfigKey = "omni.UserCommandArgs"
 
 	PrivateKeyLocConfigKey = "omni.PrivateKeyLoc"
-	PrivateKeyPassword = "omni.PrivateKeyPassword"
+	PrivateKeyPassword     = "omni.PrivateKeyPassword"
 
 	// Custom config file location
 	ConfigFileLoc = ""
@@ -38,7 +38,6 @@ type OmnivoreConfig struct {
 	PrivateKeyLoc      string
 	PrivateKeyPassword string
 }
-
 
 // InitConfig reads in a config file, populating Viper with keys used to access values elsewhere in the tool.
 func InitConfig() {

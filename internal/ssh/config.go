@@ -7,7 +7,7 @@ import (
 )
 
 type OmniSSHConfig struct {
-	Config *massh.Config
+	Config     *massh.Config
 	StreamChan chan massh.Result
 }
 
@@ -67,9 +67,3 @@ func (c *OmniSSHConfig) AddSSHSockAuth() error {
 
 	return nil
 }
-
-
-
-
-
-

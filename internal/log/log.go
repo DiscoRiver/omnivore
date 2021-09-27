@@ -7,13 +7,13 @@ import (
 
 var (
 	defaultLogLoc = "/var/log/omnivore.log"
-	testLogLoc = os.Stdout
+	testLogLoc    = os.Stdout
 )
 
 var (
-	Warn *log.Logger
-	Info    *log.Logger
-	Error   *log.Logger
+	Warn  *log.Logger
+	Info  *log.Logger
+	Error *log.Logger
 )
 
 func InitLogger() {
@@ -32,4 +32,3 @@ func InitTestLogger() {
 	Warn = log.New(testLogLoc, "WARNING: ", log.Ldate|log.Ltime|log.Lshortfile)
 	Error = log.New(testLogLoc, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
 }
-

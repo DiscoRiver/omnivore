@@ -28,7 +28,7 @@ func TestPopulateResultsMap(t *testing.T) {
 
 	for i := range mockResult {
 		i := i
-		go func() {ch <- mockResult[i]}()
+		go func() { ch <- mockResult[i] }()
 	}
 
 	err := s.populateResultsMap(ch, len(mockResult))

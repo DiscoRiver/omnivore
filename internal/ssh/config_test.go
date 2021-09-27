@@ -18,6 +18,7 @@ var (
 		"192.168.1.212": struct{}{},
 	}
 )
+
 // TestStreamWithOutput ensures we can initiate and stream the massh stdout channels when initiated via the OmniSSHConfig
 // funcs.
 func TestStreamWithOutput(t *testing.T) {
@@ -44,7 +45,6 @@ func TestStreamWithOutput(t *testing.T) {
 		Job:        j,
 		WorkerPool: 10,
 	}
-
 
 	conf.StreamChan = make(chan massh.Result)
 
