@@ -6,12 +6,22 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 )
 
 var (
 	ErrStdinPipeDoesNotExist = errors.New("stdin pipe does not exist")
 )
+
+func RunCommand(cmd string, args ...string) ([]byte, error) {
+	c := exec.Command(cmd, args...)
+	stdout, err := c.Output()
+	if err != nil {
+		return nil, err
+	}
+	return stdout, nil
+}
 
 // ReadStdinToSlice reads space-separated values from Stdin and returns a slice, or error on failure.
 func ReadStdinToSlice() ([]string, error) {
