@@ -65,7 +65,7 @@ func InitConfig() {
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			log.OmniLog.Warn("Config file not found, using defaults")
+			log.OmniLog.Warn("Config file not found, using defaults.")
 		} else {
 			// We don't want to use defaults if user is trying to use a custom config, ideally.
 			log.OmniLog.Fatal("Config file found, but errored: %s", err)
@@ -77,6 +77,5 @@ func InitConfig() {
 	f, err := os.Stat(file)
 	if err == nil && f.Mode().Perm() != 0600 {
 		log.OmniLog.Fatal("Config file %s has invalid permissions. Run \"chmod 0600 %s\" to correct.", file, file)
-		os.Exit(1)
 	}
 }

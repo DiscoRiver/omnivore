@@ -1,4 +1,4 @@
-package ssh
+package ossh
 
 import (
 	"github.com/discoriver/massh"
@@ -11,6 +11,14 @@ type OmniSSHConfig struct {
 	StreamChan chan massh.Result
 }
 
+func NewConfig() *OmniSSHConfig {
+	c := &OmniSSHConfig{
+		Config:     massh.NewConfig(),
+		StreamChan: make(chan massh.Result),
+	}
+	return c
+}
+
 // Stream executes work contained in the massh.Config, and returns a StreamCycle for monitoring output and status.
 func (c *OmniSSHConfig) Stream() (*StreamCycle, error) {
 	err := c.Config.Stream(c.StreamChan)
@@ -18,7 +26,7 @@ func (c *OmniSSHConfig) Stream() (*StreamCycle, error) {
 		return nil, err
 	}
 
-	log.Info.Println("Massh Streaming started successfully.")
+	log.OmniLog.Info("Massh Streaming started successfully.")
 
 	ss := newStreamCycle(c.StreamChan, len(c.Config.Hosts))
 	return ss, nil
@@ -48,10 +56,9 @@ func (c *OmniSSHConfig) AddWorkerPool(w int) {
 	c.Config.SetWorkerPool(w)
 }
 
-func (c *OmniSSHConfig) AddPasswordAuth(p string) error {
-	c.Config.SetPasswordAuth([]byte(p))
-
-	return nil
+func (c *OmniSSHConfig) AddPasswordAuth(user string, password string) {
+	c.Config.SSHConfig.User = user
+	c.Config.SetPasswordAuth([]byte(password))
 }
 
 func (c *OmniSSHConfig) AddPublicKeyAuth(k string, p string) (err error) {

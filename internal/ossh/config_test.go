@@ -1,4 +1,4 @@
-package ssh
+package ossh
 
 import (
 	"fmt"
