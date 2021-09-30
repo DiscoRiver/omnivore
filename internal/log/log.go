@@ -1,34 +1,74 @@
 package log
 
 import (
+	"fmt"
 	"log"
 	"os"
 )
 
 var (
 	defaultLogLoc = "/var/log/omnivore.log"
-	testLogLoc    = os.Stdout
+
+	OmniLog *OmniLogger
 )
 
-var (
-	Warn  *log.Logger
-	Info  *log.Logger
-	Error *log.Logger
-)
+type OmniLogger struct {
+	// Messages stores logs for a single Omnivore session.
+	Messages []string
 
-func InitLogger() {
-	file, err := os.OpenFile(defaultLogLoc, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-	if err != nil {
-		log.Fatal(err)
-	}
+	FileOutput *os.File
 
-	Info = log.New(file, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
-	Warn = log.New(file, "WARNING: ", log.Ldate|log.Ltime|log.Lshortfile)
-	Error = log.New(file, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
+	warn  *log.Logger
+	info  *log.Logger
+	er *log.Logger
+	fatal *log.Logger
 }
 
-func InitTestLogger() {
-	Info = log.New(testLogLoc, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
-	Warn = log.New(testLogLoc, "WARNING: ", log.Ldate|log.Ltime|log.Lshortfile)
-	Error = log.New(testLogLoc, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
+func (o *OmniLogger) Info(format string, args ...interface{}) {
+	s := fmt.Sprintf(format, args)
+
+	o.info.Println(s)
+
+	o.Messages = append(o.Messages, s)
+}
+
+func (o *OmniLogger) Warn(format string, args ...interface{}) {
+	s := fmt.Sprintf(format, args)
+
+	o.warn.Println(s)
+
+	o.Messages = append(o.Messages, s)
+}
+
+func (o *OmniLogger) Error(format string, args ...interface{}) {
+	s := fmt.Sprintf(format, args)
+
+	o.er.Println(s)
+
+	o.Messages = append(o.Messages, s)
+}
+
+func (o *OmniLogger) Fatal(format string, args ...interface{}) {
+	s := fmt.Sprintf(format, args)
+
+	o.fatal.Println(s)
+
+	o.Messages = append(o.Messages, s)
+
+	os.Exit(1)
+}
+
+func (o *OmniLogger) Init() {
+	if o.FileOutput == nil {
+		var err error
+		o.FileOutput, err = os.OpenFile(defaultLogLoc, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	o.info = log.New(o.FileOutput, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
+	o.warn = log.New(o.FileOutput, "WARNING: ", log.Ldate|log.Ltime|log.Lshortfile)
+	o.er = log.New(o.FileOutput, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
+	o.fatal = log.New(o.FileOutput, "FATAL: ", log.Ldate|log.Ltime|log.Lshortfile)
 }

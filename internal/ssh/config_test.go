@@ -3,7 +3,6 @@ package ssh
 import (
 	"fmt"
 	"github.com/discoriver/massh"
-	"github.com/discoriver/omnivore/internal/log"
 	"golang.org/x/crypto/ssh"
 	"sync"
 	"testing"
@@ -22,8 +21,6 @@ var (
 // TestStreamWithOutput ensures we can initiate and stream the massh stdout channels when initiated via the OmniSSHConfig
 // funcs.
 func TestStreamWithOutput(t *testing.T) {
-	log.InitTestLogger()
-
 	conf := OmniSSHConfig{}
 
 	j := &massh.Job{

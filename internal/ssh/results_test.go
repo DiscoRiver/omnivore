@@ -2,7 +2,6 @@ package ssh
 
 import (
 	"github.com/discoriver/massh"
-	"github.com/discoriver/omnivore/internal/log"
 	"testing"
 )
 
@@ -19,8 +18,6 @@ var (
 )
 
 func TestPopulateResultsMap(t *testing.T) {
-	log.InitTestLogger()
-
 	mockResult = append(mockResult, sampleResult1, sampleResult2)
 	s := StreamCycle{}
 	s.Initialise()

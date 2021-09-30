@@ -9,6 +9,10 @@ import (
 )
 
 var (
+	// Config Name and Location
+	defaultConfigName = ".omnivore"
+	defaultConfigType = "yaml"
+
 	// Config keys.
 	HostsCommandConfigKey     = "omni.HostsCommand"
 	HostsCommandArgsConfigKey = "omni.HostsCommandArgs"
@@ -41,9 +45,6 @@ type OmnivoreConfig struct {
 
 // InitConfig reads in a config file, populating Viper with keys used to access values elsewhere in the tool.
 func InitConfig() {
-	defaultConfigName := ".omnivore"
-	defaultConfigType := "yaml"
-
 	var configHome string
 
 	if ConfigFileLoc != "" {
@@ -54,7 +55,7 @@ func InitConfig() {
 		var err error
 		configHome, err = homedir.Dir()
 		if err != nil {
-			log.Error.Printf("Couldn't find user home directory: %s", err)
+			log.OmniLog.Fatal("Couldn't find user home directory: %s", err)
 		}
 
 		viper.AddConfigPath(configHome)
@@ -64,10 +65,10 @@ func InitConfig() {
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			log.Warn.Println("Config file not found, using defaults")
+			log.OmniLog.Warn("Config file not found, using defaults")
 		} else {
 			// We don't want to use defaults if user is trying to use a custom config, ideally.
-			log.Warn.Printf("Config file found, but errored: %s", err)
+			log.OmniLog.Fatal("Config file found, but errored: %s", err)
 		}
 	}
 
@@ -75,7 +76,7 @@ func InitConfig() {
 	file := viper.ConfigFileUsed()
 	f, err := os.Stat(file)
 	if err == nil && f.Mode().Perm() != 0600 {
-		log.Error.Printf("Config file %s has invalid permissions. Run \"chmod 0600 %s\" to correct.", file, file)
+		log.OmniLog.Fatal("Config file %s has invalid permissions. Run \"chmod 0600 %s\" to correct.", file, file)
 		os.Exit(1)
 	}
 }

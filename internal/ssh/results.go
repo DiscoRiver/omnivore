@@ -59,7 +59,7 @@ func (s *StreamCycle) Initialise() {
 
 	s.initialised = true
 
-	log.Info.Println("StreamCycle was initialised.")
+	log.OmniLog.Info("StreamCycle was initialised.")
 }
 
 func (s *StreamCycle) isInitialised() bool {
@@ -78,7 +78,7 @@ func (s *StreamCycle) populateResultsMap(ch chan massh.Result, numHosts int) err
 			s.HostsResultMap[result.Host] = result
 		default:
 			if len(s.HostsResultMap) == numHosts {
-				log.Info.Printf(fmt.Sprintf("StreamCycle HostsResultMap populated with %d hosts.", len(s.HostsResultMap)))
+				log.OmniLog.Info(fmt.Sprintf("StreamCycle HostsResultMap populated with %d hosts.", len(s.HostsResultMap)))
 
 				return nil
 			}
