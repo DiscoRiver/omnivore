@@ -2,10 +2,11 @@
 package config
 
 import (
+	"os"
+
 	"github.com/discoriver/omnivore/internal/log"
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
-	"os"
 )
 
 var (

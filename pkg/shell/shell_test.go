@@ -19,3 +19,13 @@ func TestRunCommand(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestGetenv(t *testing.T) {
+	testEnvVar := "TERM"
+
+	_, err := Getenv(testEnvVar)
+	if err != nil {
+		t.Log(err)
+		t.Fail()
+	}
+}

@@ -1,8 +1,9 @@
 package ossh
 
 import (
-	"github.com/discoriver/massh"
 	"testing"
+
+	"github.com/discoriver/massh"
 )
 
 var (
