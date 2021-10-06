@@ -13,9 +13,9 @@ import (
 func TestStreamWithOutput(t *testing.T) {
 	test.InitTestLogger()
 	conf := OmniSSHConfig{}
-	conf.Config = testConfig
+	conf.Config = test.Config
 
-	if err := testConfig.SetPrivateKeyAuth("~/.ssh/id_rsa", ""); err != nil {
+	if err := conf.Config.SetPrivateKeyAuth("~/.ssh/id_rsa", ""); err != nil {
 		t.Log(err)
 		t.FailNow()
 	}
