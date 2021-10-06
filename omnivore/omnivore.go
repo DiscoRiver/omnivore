@@ -23,8 +23,7 @@ type OmniCommandFlags struct {
 func OmniRun(cmd *OmniCommandFlags) {
 	conf := ossh.NewConfig()
 
-	j := &massh.Job{Command: cmd.Command}
-	conf.AddJob(j)
+	conf.AddJob(&massh.Job{Command: cmd.Command})
 	conf.AddHosts(cmd.Hosts)
 	conf.AddPasswordAuth(cmd.Username, cmd.Password)
 	conf.Config.SSHConfig.HostKeyCallback = ssh.InsecureIgnoreHostKey()

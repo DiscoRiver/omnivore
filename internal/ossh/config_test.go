@@ -4,19 +4,8 @@ import (
 	"fmt"
 	"github.com/discoriver/massh"
 	"github.com/discoriver/omnivore/internal/test"
-	"golang.org/x/crypto/ssh"
 	"sync"
 	"testing"
-	"time"
-)
-
-var (
-	testHosts = map[string]struct{}{
-		"192.168.1.130": struct{}{},
-		"192.168.1.125": struct{}{},
-		"192.168.1.129": struct{}{},
-		"192.168.1.212": struct{}{},
-	}
 )
 
 // TestStreamWithOutput ensures we can initiate and stream the massh stdout channels when initiated via the OmniSSHConfig
@@ -24,25 +13,11 @@ var (
 func TestStreamWithOutput(t *testing.T) {
 	test.InitTestLogger()
 	conf := OmniSSHConfig{}
+	conf.Config = testConfig
 
-	j := &massh.Job{
-		Command: "echo \"Hello, World\"",
-	}
-
-	sshc := &ssh.ClientConfig{
-		// Fake credentials
-		User:            "u01",
-		Auth:            []ssh.AuthMethod{ssh.Password("password")},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		Timeout:         time.Duration(2) * time.Second,
-	}
-
-	conf.Config = &massh.Config{
-		// In this example I was testing with two working hosts, and two non-existent IPs.
-		Hosts:      testHosts,
-		SSHConfig:  sshc,
-		Job:        j,
-		WorkerPool: 10,
+	if err := testConfig.SetPrivateKeyAuth("~/.ssh/id_rsa", ""); err != nil {
+		t.Log(err)
+		t.FailNow()
 	}
 
 	conf.StreamChan = make(chan massh.Result)
@@ -50,7 +25,7 @@ func TestStreamWithOutput(t *testing.T) {
 	// This should be the last responsibility from the massh package. Handling the Result channel is up to the user.
 	s, err := conf.Stream()
 	if err != nil {
-		panic(err)
+		t.Logf("Stream failed to initiate: %s", err)
 	}
 
 	var wg sync.WaitGroup
