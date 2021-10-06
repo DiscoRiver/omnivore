@@ -1,6 +1,11 @@
 package shell
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
+
+var shellTestEnv = "OMNI_TEST"
 
 func TestRunCommand(t *testing.T) {
 	cmd := "echo"
@@ -21,9 +26,13 @@ func TestRunCommand(t *testing.T) {
 }
 
 func TestGetenv(t *testing.T) {
-	testEnvVar := "TERM"
+	err := os.Setenv("OMNI_TEST", "some_value")
+	if err != nil {
+		t.Logf("couldn't set environment variable: %s", err)
+		t.FailNow()
+	}
 
-	_, err := Getenv(testEnvVar)
+	_, err = Getenv(shellTestEnv)
 	if err != nil {
 		t.Log(err)
 		t.Fail()

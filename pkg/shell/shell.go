@@ -13,6 +13,7 @@ import (
 var (
 	ErrStdinPipeDoesNotExist = errors.New("stdin pipe does not exist")
 	ErrEnvironmentVariableNotSet = errors.New("environment variable not set")
+	ErrCouldNotSetEnvironmentVariable = errors.New("couldn't set environment variable")
 )
 
 func RunCommand(cmd string, args ...string) ([]byte, error) {
@@ -51,9 +52,9 @@ func StdinPipeExists() bool {
 
 func Getenv(key string) (string, error) {
 	env := os.Getenv(key)
-
 	if env == "" {
 		return "", ErrEnvironmentVariableNotSet
 	}
+
 	return env, nil
 }

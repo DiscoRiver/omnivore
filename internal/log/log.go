@@ -29,7 +29,7 @@ func (o *OmniLogger) Info(format string, args ...interface{}) {
 	if len(args) == 0 {
 		s = format
 	} else {
-		s = fmt.Sprintf(format, args)
+		s = fmt.Sprintf(format, args...)
 	}
 
 	o.info.Println(s)
@@ -42,7 +42,7 @@ func (o *OmniLogger) Warn(format string, args ...interface{}) {
 	if len(args) == 0 {
 		s = format
 	} else {
-		s = fmt.Sprintf(format, args)
+		s = fmt.Sprintf(format, args...)
 	}
 
 	o.warn.Println(s)
@@ -55,7 +55,7 @@ func (o *OmniLogger) Error(format string, args ...interface{}) {
 	if len(args) == 0 {
 		s = format
 	} else {
-		s = fmt.Sprintf(format, args)
+		s = fmt.Sprintf(format, args...)
 	}
 
 	o.er.Println(s)
@@ -68,7 +68,7 @@ func (o *OmniLogger) Fatal(format string, args ...interface{}) {
 	if len(args) == 0 {
 		s = format
 	} else {
-		s = fmt.Sprintf(format, args)
+		s = fmt.Sprintf(format, args...)
 	}
 
 	o.fatal.Println(s)
