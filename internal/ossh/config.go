@@ -79,7 +79,7 @@ func (c *OmniSSHConfig) AddPrivateKeyAuth(keyPath string, password string) (err 
 
 // AddSSHSockAuth sets the SSH_AUTH_SOCK variable for auth in massh.Config.
 func (c *OmniSSHConfig) AddSSHSockAuth() error {
-	c.Config.SetSSHAuthSockAuth()
+	c.Config.SetSSHAuthSock()
 
 	return nil
 }
