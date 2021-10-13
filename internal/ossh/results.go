@@ -74,7 +74,6 @@ func (s *StreamCycle) populateResultsMap(ch chan massh.Result, numHosts int) err
 	for {
 		select {
 		case result := <-ch:
-			// TODO: Update this to handle duplicate hostnames
 			s.HostsResultMap[result.Host] = result
 		default:
 			if len(s.HostsResultMap) == numHosts {
