@@ -1,6 +1,9 @@
 package group
 
-import "testing"
+import (
+	"sync"
+	"testing"
+)
 
 func TestValueGrouping_AddNewGroup(t *testing.T) {
 	i := NewIdentifyingPair("host", []byte("Hello, World"))
@@ -50,4 +53,38 @@ func TestValueGrouping_AddMemberCreate_NotPresent(t *testing.T) {
 		t.Logf("Map key not present for expect value: %d", i.hash)
 		t.Fail()
 	}
+}
+
+func TestValueGrouping_AddMemberCreate_Concurrent(t *testing.T) {
+	var iden []*IdentifyingPair
+	iden = append(iden, NewIdentifyingPair("host", []byte("Hello, World")))
+	iden = append(iden, NewIdentifyingPair("host2", []byte("Hello, World")))
+	iden = append(iden, NewIdentifyingPair("host3", []byte("Hello, Worlds")))
+	iden = append(iden, NewIdentifyingPair("host4", []byte("Hello, Worlds")))
+
+	vg := NewValueGrouping()
+
+	AddMemberCreateFunc := func(i *IdentifyingPair, wg *sync.WaitGroup){
+		vg.AddMemberCreate(i)
+		wg.Done()
+	}
+
+	var wg sync.WaitGroup
+	for i := range iden {
+		wg.Add(1)
+		go AddMemberCreateFunc(iden[i], &wg)
+	}
+	wg.Wait()
+
+
+	if members, ok := vg.Map[iden[0].hash]; !ok && len(members) != 2 {
+		t.Logf("Map key not present for expect value: %d", iden[0].hash)
+		t.Fail()
+	}
+
+	if members, ok := vg.Map[iden[2].hash]; !ok && len(members) != 2 {
+		t.Logf("Map key not present for expect value: %d", iden[0].hash)
+		t.Fail()
+	}
+
 }

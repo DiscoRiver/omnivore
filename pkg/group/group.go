@@ -4,6 +4,7 @@ package group
 import (
 	"encoding/binary"
 	"fmt"
+	"sync"
 )
 
 type ValueGrouping struct {
@@ -11,8 +12,9 @@ type ValueGrouping struct {
 	Map map[uint32][]string
 	// Preserve original byte slice
 	Value map[uint32][]byte
-}
 
+	mu sync.Mutex
+}
 
 type IdentifyingPair struct {
 	Key string
@@ -21,6 +23,8 @@ type IdentifyingPair struct {
 
 	// Unexported
 	hash uint32
+
+	mu sync.Mutex
 }
 
 func NewIdentifyingPair(Key string, Value []byte) *IdentifyingPair {
@@ -54,6 +58,13 @@ func (v *ValueGrouping) AddNewGroup(i *IdentifyingPair) error {
 
 // AddMember adds members to the value group, if hash doesn't currently exist, it will be created.
 func (v *ValueGrouping) AddMemberCreate(i *IdentifyingPair) {
+	v.mu.Lock()
+	i.mu.Lock()
+	defer func() {
+		v.mu.Unlock()
+		i.mu.Unlock()
+	}()
+
 	if i.hash == 0 {
 		i.hash = ComputeUint32Hash(i.Value)
 	}
@@ -66,6 +77,9 @@ func (v *ValueGrouping) AddMemberCreate(i *IdentifyingPair) {
 }
 
 func (v *ValueGrouping) GetMembers(hash uint32) ([]string, error) {
+	v.mu.Lock()
+	defer func(){ v.mu.Unlock() }()
+
 	if members, ok := v.Map[hash]; !ok {
 		return nil, fmt.Errorf("value entry does not exist, no members to return")
 	} else {
@@ -74,6 +88,9 @@ func (v *ValueGrouping) GetMembers(hash uint32) ([]string, error) {
 }
 
 func (v *ValueGrouping) GetValue(hash uint32) ([]byte, error) {
+	v.mu.Lock()
+	defer func(){ v.mu.Unlock() }()
+
 	if value, ok := v.Value[hash]; !ok {
 		return nil, fmt.Errorf("hash entry does not exist, no value to return")
 	} else {
