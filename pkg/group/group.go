@@ -7,11 +7,12 @@ import (
 	"sync"
 )
 
+// ValueGrouping contains value/member groupings, and should only be written to by using the AddToGroup method.
 type ValueGrouping struct {
-	// Representing a byte slice as EncodedValue value for equality check. String slice of members
-	Map map[uint32][]string
+	// Representing a byte slice as an encoded value for easy equality check. String slice of members.
+	EncodedValueGroup map[uint32][]string
 	// Preserve original byte slice
-	Value map[uint32][]byte
+	EncodedValueToOriginal map[uint32][]byte
 
 	mu sync.Mutex
 }
@@ -35,27 +36,15 @@ func NewIdentifyingPair(Key string, Value []byte) *IdentifyingPair {
 
 func NewValueGrouping() *ValueGrouping {
 	return &ValueGrouping{
-		Map:   map[uint32][]string{},
-		Value: map[uint32][]byte{},
+		EncodedValueGroup:      map[uint32][]string{},
+		EncodedValueToOriginal: map[uint32][]byte{},
 	}
 }
 
-func (v *ValueGrouping) AddNewGroup(i *IdentifyingPair) error {
-	if i.EncodedValue == 0 {
-		i.EncodedValue = EncodeByteSliceToUint32(i.Value)
-	}
-
-	if _, ok := v.Map[i.EncodedValue]; ok {
-		return fmt.Errorf("value group already exists")
-	}
-
-	v.Map[i.EncodedValue] = []string{i.Key}
-	v.Value[i.EncodedValue] = i.Value
-	return nil
-}
-
-// AddMember adds members to the value group, if EncodedValue doesn't currently exist, it will be created.
-func (v *ValueGrouping) AddMemberCreate(i *IdentifyingPair) {
+// AddToGroup creates or adds to an EncodedValueGroup. If an entry already exists for the encoded value provided within
+// IdentifyingPair, the additional members will be added. This should be considered the only function for adding groups
+// and members to an EncodedValueGroup.
+func (v *ValueGrouping) AddToGroup(i *IdentifyingPair) {
 	v.mu.Lock()
 	i.mu.Lock()
 	defer func() {
@@ -67,18 +56,26 @@ func (v *ValueGrouping) AddMemberCreate(i *IdentifyingPair) {
 		i.EncodedValue = EncodeByteSliceToUint32(i.Value)
 	}
 
-	if _, ok := v.Map[i.EncodedValue]; !ok {
-		v.AddNewGroup(i)
-	} else {
-		v.Map[i.EncodedValue] = append(v.Map[i.EncodedValue], i.Key)
+	if _, ok := v.EncodedValueGroup[i.EncodedValue]; ok {
+		v.addMembersToExistingGroup(i)
+		return
 	}
+
+	v.EncodedValueGroup[i.EncodedValue] = []string{i.Key}
+	v.EncodedValueToOriginal[i.EncodedValue] = i.Value
+
+	return
+}
+
+func (v *ValueGrouping) addMembersToExistingGroup(i *IdentifyingPair) {
+	v.EncodedValueGroup[i.EncodedValue] = append(v.EncodedValueGroup[i.EncodedValue], i.Key)
 }
 
 func (v *ValueGrouping) GetMembers(hash uint32) ([]string, error) {
 	v.mu.Lock()
 	defer func(){ v.mu.Unlock() }()
 
-	if members, ok := v.Map[hash]; !ok {
+	if members, ok := v.EncodedValueGroup[hash]; !ok {
 		return nil, fmt.Errorf("value entry does not exist, no members to return")
 	} else {
 		return members, nil
@@ -89,7 +86,7 @@ func (v *ValueGrouping) GetValue(hash uint32) ([]byte, error) {
 	v.mu.Lock()
 	defer func(){ v.mu.Unlock() }()
 
-	if value, ok := v.Value[hash]; !ok {
+	if value, ok := v.EncodedValueToOriginal[hash]; !ok {
 		return nil, fmt.Errorf("EncodedValue entry does not exist, no value to return")
 	} else {
 		return value, nil
