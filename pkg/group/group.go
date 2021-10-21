@@ -2,8 +2,12 @@
 package group
 
 import (
+	"crypto/md5"
+	"crypto/sha1"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
+	"golang.org/x/crypto/md4"
 	"sync"
 )
 
@@ -97,15 +101,20 @@ func EncodeByteSliceToUint32(b []byte) uint32 {
 	return binary.BigEndian.Uint32(b)
 }
 
-// Grouping for short output groups. We can perform grouping here based on an exact match, or by a Levenshtein
-// distance value. We're typically expecting single-line output from these commands. Some examples could for commands
-// that would fall into this category could be "date", "lsb_release -v", or "uname".
-type ShortOutputGroup struct {
-	Hosts map[string]int
+func EncodeByteSliceToSha1(byt []byte) string {
+	h := sha1.New()
+	h.Write(byt)
+	return hex.EncodeToString(h.Sum(nil))
+}
 
-	Output []byte
-	// Output length
-	len int
+func EncodeByteSliceToMD5(byt []byte) string {
+	h := md5.New()
+	h.Write(byt)
+	return hex.EncodeToString(h.Sum(nil))
+}
 
-	MaxDeviation int
+func EncodeByteSliceToMD4(byt []byte) string {
+	h := md4.New()
+	h.Write(byt)
+	return hex.EncodeToString(h.Sum(nil))
 }

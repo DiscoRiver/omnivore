@@ -97,3 +97,35 @@ func TestValueGrouping_AddToGroup_Uninitialised(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func BenchmarkEncodeByteSliceToUint32(b *testing.B) {
+	byt := []byte("Hello, World")
+
+	for n := 0; n < b.N; n++ {
+		EncodeByteSliceToUint32(byt)
+	}
+}
+
+func BenchmarkEncodeByteSliceToSha1(b *testing.B) {
+	byt := []byte("Hello, World")
+
+	for n := 0; n < b.N; n++ {
+		EncodeByteSliceToSha1(byt)
+	}
+}
+
+func BenchmarkEncodeByteSliceToMD5(b *testing.B) {
+	byt := []byte("Hello, World")
+
+	for n := 0; n < b.N; n++ {
+		EncodeByteSliceToMD5(byt)
+	}
+}
+
+func BenchmarkEncodeByteSliceToMD4(b *testing.B) {
+	byt := []byte("Hello, World")
+
+	for n := 0; n < b.N; n++ {
+		EncodeByteSliceToMD4(byt)
+	}
+}
