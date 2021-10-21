@@ -16,8 +16,8 @@ func TestValueGrouping_AddNewGroup(t *testing.T) {
 		t.Fail()
 	}
 
-	if _, ok := vg.Map[i.hash]; !ok {
-		t.Logf("Map key not present for expect value: %d", i.hash)
+	if _, ok := vg.Map[i.EncodedValue]; !ok {
+		t.Logf("Map key not present for expect value: %d", i.EncodedValue)
 		t.Fail()
 	}
 }
@@ -36,7 +36,7 @@ func TestValueGrouping_AddMemberCreate_Present(t *testing.T) {
 
 	vg.AddMemberCreate(i2)
 
-	if members, _ := vg.Map[i.hash]; members[1] != "host2" {
+	if members, _ := vg.Map[i.EncodedValue]; members[1] != "host2" {
 		t.Logf("Expected %s to be present in map slice.", i2.Key)
 		t.Fail()
 	}
@@ -49,8 +49,8 @@ func TestValueGrouping_AddMemberCreate_NotPresent(t *testing.T) {
 
 	vg.AddMemberCreate(i)
 
-	if members, ok := vg.Map[i.hash]; !ok && len(members) != 1 {
-		t.Logf("Map key not present for expect value: %d", i.hash)
+	if members, ok := vg.Map[i.EncodedValue]; !ok && len(members) != 1 {
+		t.Logf("Map key not present for expect value: %d", i.EncodedValue)
 		t.Fail()
 	}
 }
@@ -77,13 +77,13 @@ func TestValueGrouping_AddMemberCreate_Concurrent(t *testing.T) {
 	wg.Wait()
 
 
-	if members, ok := vg.Map[iden[0].hash]; !ok && len(members) != 2 {
-		t.Logf("Map key not present for expect value: %d", iden[0].hash)
+	if members, ok := vg.Map[iden[0].EncodedValue]; !ok && len(members) != 2 {
+		t.Logf("Map key not present for expect value: %d", iden[0].EncodedValue)
 		t.Fail()
 	}
 
-	if members, ok := vg.Map[iden[2].hash]; !ok && len(members) != 2 {
-		t.Logf("Map key not present for expect value: %d", iden[0].hash)
+	if members, ok := vg.Map[iden[2].EncodedValue]; !ok && len(members) != 2 {
+		t.Logf("Map key not present for expect value: %d", iden[0].EncodedValue)
 		t.Fail()
 	}
 

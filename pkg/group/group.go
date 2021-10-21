@@ -8,7 +8,7 @@ import (
 )
 
 type ValueGrouping struct {
-	// Representing a byte slice as hash value for equality check. String slice of members
+	// Representing a byte slice as EncodedValue value for equality check. String slice of members
 	Map map[uint32][]string
 	// Preserve original byte slice
 	Value map[uint32][]byte
@@ -20,18 +20,16 @@ type IdentifyingPair struct {
 	Key string
 	// WARN: Potentially memory intensive if returning lots of data from ssh command.
 	Value []byte
-
-	// Unexported
-	hash uint32
+	EncodedValue uint32
 
 	mu sync.Mutex
 }
 
 func NewIdentifyingPair(Key string, Value []byte) *IdentifyingPair {
 	return &IdentifyingPair{
-		Key:   Key,
-		Value: Value,
-		hash:  ComputeUint32Hash(Value),
+		Key:          Key,
+		Value:        Value,
+		EncodedValue: EncodeByteSliceToUint32(Value),
 	}
 }
 
@@ -43,20 +41,20 @@ func NewValueGrouping() *ValueGrouping {
 }
 
 func (v *ValueGrouping) AddNewGroup(i *IdentifyingPair) error {
-	if i.hash == 0 {
-		i.hash = ComputeUint32Hash(i.Value)
+	if i.EncodedValue == 0 {
+		i.EncodedValue = EncodeByteSliceToUint32(i.Value)
 	}
 
-	if _, ok := v.Map[i.hash]; ok {
+	if _, ok := v.Map[i.EncodedValue]; ok {
 		return fmt.Errorf("value group already exists")
 	}
 
-	v.Map[i.hash] = []string{i.Key}
-	v.Value[i.hash] = i.Value
+	v.Map[i.EncodedValue] = []string{i.Key}
+	v.Value[i.EncodedValue] = i.Value
 	return nil
 }
 
-// AddMember adds members to the value group, if hash doesn't currently exist, it will be created.
+// AddMember adds members to the value group, if EncodedValue doesn't currently exist, it will be created.
 func (v *ValueGrouping) AddMemberCreate(i *IdentifyingPair) {
 	v.mu.Lock()
 	i.mu.Lock()
@@ -65,14 +63,14 @@ func (v *ValueGrouping) AddMemberCreate(i *IdentifyingPair) {
 		i.mu.Unlock()
 	}()
 
-	if i.hash == 0 {
-		i.hash = ComputeUint32Hash(i.Value)
+	if i.EncodedValue == 0 {
+		i.EncodedValue = EncodeByteSliceToUint32(i.Value)
 	}
 
-	if _, ok := v.Map[i.hash]; !ok {
+	if _, ok := v.Map[i.EncodedValue]; !ok {
 		v.AddNewGroup(i)
 	} else {
-		v.Map[i.hash] = append(v.Map[i.hash], i.Key)
+		v.Map[i.EncodedValue] = append(v.Map[i.EncodedValue], i.Key)
 	}
 }
 
@@ -92,13 +90,13 @@ func (v *ValueGrouping) GetValue(hash uint32) ([]byte, error) {
 	defer func(){ v.mu.Unlock() }()
 
 	if value, ok := v.Value[hash]; !ok {
-		return nil, fmt.Errorf("hash entry does not exist, no value to return")
+		return nil, fmt.Errorf("EncodedValue entry does not exist, no value to return")
 	} else {
 		return value, nil
 	}
 }
 
-func ComputeUint32Hash(b []byte) uint32 {
+func EncodeByteSliceToUint32(b []byte) uint32 {
 	return binary.BigEndian.Uint32(b)
 }
 
