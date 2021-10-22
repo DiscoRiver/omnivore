@@ -12,8 +12,8 @@ func TestValueGrouping_AddToGroup(t *testing.T) {
 
 	vg.AddToGroup(i)
 
-	if _, ok := vg.EncodedValueGroup[i.EncodedValue]; !ok {
-		t.Logf("EncodedValueGroup key not present for expect value: %d", i.EncodedValue)
+	if _, ok := vg.EncodedValueGroup[i.encodedValue]; !ok {
+		t.Logf("EncodedValueGroup key not present for expect value: %s", i.encodedValue)
 		t.Fail()
 	}
 }
@@ -27,7 +27,7 @@ func TestValueGrouping_AddToGroup_Present(t *testing.T) {
 	vg.AddToGroup(i)
 	vg.AddToGroup(i2)
 
-	if members, _ := vg.EncodedValueGroup[i.EncodedValue]; members[1] != "host2" {
+	if members, _ := vg.EncodedValueGroup[i.encodedValue]; members[1] != "host2" {
 		t.Logf("Expected %s to be present in map slice.", i2.Key)
 		t.Fail()
 	}
@@ -40,8 +40,8 @@ func TestValueGrouping_AddToGroup_NotPresent(t *testing.T) {
 
 	vg.AddToGroup(i)
 
-	if members, ok := vg.EncodedValueGroup[i.EncodedValue]; !ok && len(members) != 1 {
-		t.Logf("EncodedValueGroup key not present for expect value: %d", i.EncodedValue)
+	if members, ok := vg.EncodedValueGroup[i.encodedValue]; !ok && len(members) != 1 {
+		t.Logf("EncodedValueGroup key not present for expect value: %s", i.encodedValue)
 		t.Fail()
 	}
 }
@@ -55,7 +55,7 @@ func TestValueGrouping_AddToGroup_Concurrent(t *testing.T) {
 
 	vg := NewValueGrouping()
 
-	AddMemberCreateFunc := func(i *IdentifyingPair, wg *sync.WaitGroup){
+	AddMemberCreateFunc := func(i *IdentifyingPair, wg *sync.WaitGroup) {
 		vg.AddToGroup(i)
 		wg.Done()
 	}
@@ -67,24 +67,23 @@ func TestValueGrouping_AddToGroup_Concurrent(t *testing.T) {
 	}
 	wg.Wait()
 
-
-	if members, ok := vg.EncodedValueGroup[iden[0].EncodedValue]; !ok && len(members) != 2 {
-		t.Logf("EncodedValueGroup key not present for expect value: %d", iden[0].EncodedValue)
+	if members, ok := vg.EncodedValueGroup[iden[0].encodedValue]; !ok && len(members) != 2 {
+		t.Logf("EncodedValueGroup key not present for expect value: %s", iden[0].encodedValue)
 		t.Fail()
 	}
 
-	if members, ok := vg.EncodedValueGroup[iden[2].EncodedValue]; !ok && len(members) != 2 {
-		t.Logf("EncodedValueGroup key not present for expect value: %d", iden[0].EncodedValue)
+	if members, ok := vg.EncodedValueGroup[iden[2].encodedValue]; !ok && len(members) != 2 {
+		t.Logf("EncodedValueGroup key not present for expect value: %s", iden[0].encodedValue)
 		t.Fail()
 	}
 }
 
-// Test when IdentifyingPair has a zero EncodedValue due to bad initialisation.
+// Test when IdentifyingPair has a zero encodedValue due to bad initialisation.
 func TestValueGrouping_AddToGroup_Uninitialised(t *testing.T) {
 	i := &IdentifyingPair{
 		Key:          "host",
 		Value:        []byte("Hello, World"),
-		EncodedValue: 0,
+		encodedValue: "",
 		mu:           sync.Mutex{},
 	}
 
@@ -92,40 +91,8 @@ func TestValueGrouping_AddToGroup_Uninitialised(t *testing.T) {
 
 	vg.AddToGroup(i)
 
-	if _, ok := vg.EncodedValueGroup[i.EncodedValue]; !ok {
-		t.Logf("EncodedValueGroup key not present for expect value: %d", i.EncodedValue)
+	if members, ok := vg.EncodedValueGroup[i.encodedValue]; !ok && members[0] != i.Key {
+		t.Logf("EncodedValueGroup key not present for expect value: %s", i.encodedValue)
 		t.Fail()
-	}
-}
-
-func BenchmarkEncodeByteSliceToUint32(b *testing.B) {
-	byt := []byte("Hello, World")
-
-	for n := 0; n < b.N; n++ {
-		EncodeByteSliceToUint32(byt)
-	}
-}
-
-func BenchmarkEncodeByteSliceToSha1(b *testing.B) {
-	byt := []byte("Hello, World")
-
-	for n := 0; n < b.N; n++ {
-		EncodeByteSliceToSha1(byt)
-	}
-}
-
-func BenchmarkEncodeByteSliceToMD5(b *testing.B) {
-	byt := []byte("Hello, World")
-
-	for n := 0; n < b.N; n++ {
-		EncodeByteSliceToMD5(byt)
-	}
-}
-
-func BenchmarkEncodeByteSliceToMD4(b *testing.B) {
-	byt := []byte("Hello, World")
-
-	for n := 0; n < b.N; n++ {
-		EncodeByteSliceToMD4(byt)
 	}
 }

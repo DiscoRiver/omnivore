@@ -2,30 +2,30 @@
 package group
 
 import (
-	"crypto/md5"
-	"crypto/sha1"
-	"encoding/binary"
-	"encoding/hex"
 	"fmt"
-	"golang.org/x/crypto/md4"
 	"sync"
+)
+
+const (
+	encodePadding = "0000"
 )
 
 // ValueGrouping contains value/member groupings, and should only be written to by using the AddToGroup method.
 type ValueGrouping struct {
 	// Representing a byte slice as an encoded value for easy equality check. String slice of members.
-	EncodedValueGroup map[uint32][]string
+	EncodedValueGroup map[string][]string
 	// Preserve original byte slice
-	EncodedValueToOriginal map[uint32][]byte
+	EncodedValueToOriginal map[string][]byte
 
 	mu sync.Mutex
 }
 
 type IdentifyingPair struct {
 	Key string
-	// WARN: Potentially memory intensive if returning lots of data from ssh command.
-	Value []byte
-	EncodedValue uint32
+	// WARN: Potentially memory intensive if returning lots of data from ssh command. Might want to consider temp files
+	// if number of bytes exceeds a limit.
+	Value        []byte
+	encodedValue string
 
 	mu sync.Mutex
 }
@@ -34,14 +34,14 @@ func NewIdentifyingPair(Key string, Value []byte) *IdentifyingPair {
 	return &IdentifyingPair{
 		Key:          Key,
 		Value:        Value,
-		EncodedValue: EncodeByteSliceToUint32(Value),
+		encodedValue: EncodeByteSliceToMD5(Value),
 	}
 }
 
 func NewValueGrouping() *ValueGrouping {
 	return &ValueGrouping{
-		EncodedValueGroup:      map[uint32][]string{},
-		EncodedValueToOriginal: map[uint32][]byte{},
+		EncodedValueGroup:      map[string][]string{},
+		EncodedValueToOriginal: map[string][]byte{},
 	}
 }
 
@@ -56,28 +56,28 @@ func (v *ValueGrouping) AddToGroup(i *IdentifyingPair) {
 		i.mu.Unlock()
 	}()
 
-	if i.EncodedValue == 0 {
-		i.EncodedValue = EncodeByteSliceToUint32(i.Value)
+	if i.encodedValue == "" {
+		i.encodedValue = EncodeByteSliceToMD5(i.Value)
 	}
 
-	if _, ok := v.EncodedValueGroup[i.EncodedValue]; ok {
+	if _, ok := v.EncodedValueGroup[i.encodedValue]; ok {
 		v.addMembersToExistingGroup(i)
 		return
 	}
 
-	v.EncodedValueGroup[i.EncodedValue] = []string{i.Key}
-	v.EncodedValueToOriginal[i.EncodedValue] = i.Value
+	v.EncodedValueGroup[i.encodedValue] = []string{i.Key}
+	v.EncodedValueToOriginal[i.encodedValue] = i.Value
 
 	return
 }
 
 func (v *ValueGrouping) addMembersToExistingGroup(i *IdentifyingPair) {
-	v.EncodedValueGroup[i.EncodedValue] = append(v.EncodedValueGroup[i.EncodedValue], i.Key)
+	v.EncodedValueGroup[i.encodedValue] = append(v.EncodedValueGroup[i.encodedValue], i.Key)
 }
 
-func (v *ValueGrouping) GetMembers(hash uint32) ([]string, error) {
+func (v *ValueGrouping) GetMembers(hash string) ([]string, error) {
 	v.mu.Lock()
-	defer func(){ v.mu.Unlock() }()
+	defer func() { v.mu.Unlock() }()
 
 	if members, ok := v.EncodedValueGroup[hash]; !ok {
 		return nil, fmt.Errorf("value entry does not exist, no members to return")
@@ -86,35 +86,13 @@ func (v *ValueGrouping) GetMembers(hash uint32) ([]string, error) {
 	}
 }
 
-func (v *ValueGrouping) GetValue(hash uint32) ([]byte, error) {
+func (v *ValueGrouping) GetValue(hash string) ([]byte, error) {
 	v.mu.Lock()
-	defer func(){ v.mu.Unlock() }()
+	defer func() { v.mu.Unlock() }()
 
 	if value, ok := v.EncodedValueToOriginal[hash]; !ok {
-		return nil, fmt.Errorf("EncodedValue entry does not exist, no value to return")
+		return nil, fmt.Errorf("encodedValue entry does not exist, no value to return")
 	} else {
 		return value, nil
 	}
-}
-
-func EncodeByteSliceToUint32(b []byte) uint32 {
-	return binary.BigEndian.Uint32(b)
-}
-
-func EncodeByteSliceToSha1(byt []byte) string {
-	h := sha1.New()
-	h.Write(byt)
-	return hex.EncodeToString(h.Sum(nil))
-}
-
-func EncodeByteSliceToMD5(byt []byte) string {
-	h := md5.New()
-	h.Write(byt)
-	return hex.EncodeToString(h.Sum(nil))
-}
-
-func EncodeByteSliceToMD4(byt []byte) string {
-	h := md4.New()
-	h.Write(byt)
-	return hex.EncodeToString(h.Sum(nil))
 }

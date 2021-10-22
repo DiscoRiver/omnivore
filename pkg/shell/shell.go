@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	ErrStdinPipeDoesNotExist = errors.New("stdin pipe does not exist")
-	ErrEnvironmentVariableNotSet = errors.New("environment variable not set")
+	ErrStdinPipeDoesNotExist          = errors.New("stdin pipe does not exist")
+	ErrEnvironmentVariableNotSet      = errors.New("environment variable not set")
 	ErrCouldNotSetEnvironmentVariable = errors.New("couldn't set environment variable")
 )
 
