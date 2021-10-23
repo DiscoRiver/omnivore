@@ -44,6 +44,7 @@ jobs:
         ssh-agent -a $SSH_AUTH_SOCK > /dev/null
         cat ~/.ssh/id_rsa.pub | tee -a ~/.ssh/authorized_keys
         ssh-add ~/.ssh/id_rsa
+        echo $SSH_AUTH_SOCK
         
     - name: Ensure the owner of the key is correct
       run: |
