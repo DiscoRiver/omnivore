@@ -39,12 +39,18 @@ func init() {
 	rootCmd.Flags().StringVarP(&omniFlags.PrivateKeyLocation, "key", "k", "", "Private key location.")
 	rootCmd.Flags().StringVarP(&omniFlags.PrivateKeyPassword, "keypass", "s", "", "Private key password.")
 	rootCmd.Flags().StringVarP(&omniFlags.Command, "command", "c", "", "SSH command to execute.")
+	rootCmd.Flags().IntVarP(&omniFlags.SSHTimeout, "ssh-timeout", "t", 0, "SSH timeout." )
 
+	// Persistent Flags
 	rootCmd.PersistentFlags().StringVar(&config.ConfigFileLoc, "config", "", "Config file to use with Omnivore.")
 
-	// Config
+	// Config file mapping
 	viper.BindPFlag(config.BastionHostConfigKey, rootCmd.Flags().Lookup("bastion"))
 	viper.BindPFlag(config.UsernameConfigKey, rootCmd.Flags().Lookup("user"))
 	viper.BindPFlag(config.PrivateKeyLocConfigKey, rootCmd.Flags().Lookup("key"))
 	viper.BindPFlag(config.PrivateKeyPassword, rootCmd.Flags().Lookup("keypass"))
+	viper.BindPFlag(config.SSHTimeoutConfigKey, rootCmd.Flags().Lookup("ssh-timeout"))
+
+	// Set defaults in viper
+	config.SetConfigDefaults()
 }

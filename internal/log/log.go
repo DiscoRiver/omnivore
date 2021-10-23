@@ -87,8 +87,8 @@ func (o *OmniLogger) Init() {
 		}
 	}
 
-	o.info = log.New(o.FileOutput, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
-	o.warn = log.New(o.FileOutput, "WARNING: ", log.Ldate|log.Ltime|log.Lshortfile)
-	o.er = log.New(o.FileOutput, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
-	o.fatal = log.New(o.FileOutput, "FATAL: ", log.Ldate|log.Ltime|log.Lshortfile)
+	o.info = log.New(o.FileOutput, "INFO: ", log.Ldate|log.Ltime)
+	o.warn = log.New(o.FileOutput, "WARNING: ", log.Ldate|log.Ltime)
+	o.er = log.New(o.FileOutput, "ERROR: ", log.Ldate|log.Ltime)
+	o.fatal = log.New(o.FileOutput, "FATAL: ", log.Ldate|log.Ltime)
 }

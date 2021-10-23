@@ -26,8 +26,17 @@ var (
 	UsernameCommandConfigKey     = "omni.UsernameCommand"
 	UsernameCommandArgsConfigKey = "omni.UserCommandArgs"
 
+	SSHTimeoutConfigKey = "omni.SSHTimeout"
+
 	PrivateKeyLocConfigKey = "omni.PrivateKeyLoc"
 	PrivateKeyPassword     = "omni.PrivateKeyPassword"
+
+	ConcurrentWorkerPoolConfigKey = "omni.WorkerPool"
+
+	// Default values where applicable
+	SSHTimeoutDefault = 10
+	PrivateKeyLocDefault = "~/.ssh/id_rsa"
+	ConcurrentWorkerPoolDefault = 30
 
 	// Custom config file location
 	ConfigFileLoc = ""
@@ -40,8 +49,16 @@ type OmnivoreConfig struct {
 	Command            string
 	Username           string
 	Password           string
+	SSHTimeout		   int
 	PrivateKeyLoc      string
 	PrivateKeyPassword string
+}
+
+func SetConfigDefaults() {
+	// Defaults
+	viper.SetDefault(SSHTimeoutConfigKey, SSHTimeoutDefault)
+	viper.SetDefault(PrivateKeyLocConfigKey, PrivateKeyLocDefault)
+	viper.SetDefault(ConcurrentWorkerPoolConfigKey, ConcurrentWorkerPoolDefault)
 }
 
 // InitConfig reads in a config file, populating Viper with keys used to access values elsewhere in the tool.

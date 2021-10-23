@@ -4,10 +4,7 @@ import (
 	"fmt"
 	"github.com/discoriver/massh"
 	"github.com/discoriver/omnivore/internal/log"
-	"github.com/discoriver/omnivore/internal/ossh"
-	"golang.org/x/crypto/ssh"
 	"sync"
-	"time"
 )
 
 type OmniCommandFlags struct {
@@ -18,19 +15,12 @@ type OmniCommandFlags struct {
 	PrivateKeyLocation string
 	PrivateKeyPassword string
 	Command            string
+	SSHTimeout		   int
 }
 
 func OmniRun(cmd *OmniCommandFlags) {
-	conf := ossh.NewConfig()
-
-	conf.AddJob(&massh.Job{Command: cmd.Command})
-	conf.AddHosts(cmd.Hosts)
-	conf.AddPasswordAuth(cmd.Username, cmd.Password)
-	conf.Config.SSHConfig.HostKeyCallback = ssh.InsecureIgnoreHostKey()
-	conf.Config.SSHConfig.Timeout = time.Duration(2) * time.Second
-	conf.AddWorkerPool(10)
-
-	conf.StreamChan = make(chan massh.Result)
+	// This is our OSSH conig only for doing the work, and doesn't include any UI config. This is all background conf.
+	conf := getOSSHConfig(cmd)
 
 	// This should be the last responsibility from the massh package. Handling the Result channel is up to the user.
 	s, err := conf.Stream()
