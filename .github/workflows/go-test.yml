@@ -40,9 +40,10 @@ jobs:
       env:
         SSH_AUTH_SOCK: /tmp/ssh_agent.sock
       run: >
+        ssh-keyscan github.com >> ~/.ssh/known_hosts
+        ssh-agent -a $SSH_AUTH_SOCK > /dev/null
         cat ~/.ssh/id_rsa.pub | tee -a ~/.ssh/authorized_keys
         ssh-add ~/.ssh/id_rsa
-        ssh-agent -a $SSH_AUTH_SOCK > /dev/null
         
     - name: Ensure the owner of the key is correct
       run: |

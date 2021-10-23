@@ -38,11 +38,9 @@ func getOSSHConfig(cmd *OmniCommandFlags) *ossh.OmniSSHConfig {
 	conf.Config.SSHConfig.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 
 	// SSH_AUTH_SOCK auth
-	/*
 	if err := conf.AddSSHSockAuth(); err != nil {
 		log.OmniLog.Warn("Couldn't add SSH_AUTH_SOCK: %s", err)
 	}
-	 */
 
 	conf.StreamChan = make(chan massh.Result)
 
