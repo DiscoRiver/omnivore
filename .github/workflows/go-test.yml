@@ -37,14 +37,11 @@ jobs:
         ssh-keygen -t rsa -f ~/.ssh/id_rsa
         
     - name: Add key to auth file
-      env:
-        SSH_AUTH_SOCK: /tmp/ssh_agent.sock
       run: >
         ssh-keyscan github.com >> ~/.ssh/known_hosts
         ssh-agent -a $SSH_AUTH_SOCK > /dev/null
         cat ~/.ssh/id_rsa.pub | tee -a ~/.ssh/authorized_keys
         ssh-add ~/.ssh/id_rsa
-        echo $SSH_AUTH_SOCK
         
     - name: Ensure the owner of the key is correct
       run: |
@@ -52,12 +49,14 @@ jobs:
         chmod 700 ~/.ssh
         sudo chmod -c 0755 ~/
         ls -la ~/.ssh
-
+        
     - name: Go Build
       run: go build -v ./...
 
     - name: Go Test
-      run: go test -v ./...
+      run: |
+        eval $(ssh-agent) >> /dev/null
+        go test -v ./...
       
     - name: Check auth.log log on failure
       if: ${{ failure() }}
