@@ -38,8 +38,6 @@ jobs:
         
     - name: Add key to auth file
       run: >
-        ssh-keyscan github.com >> ~/.ssh/known_hosts
-        ssh-agent -a $SSH_AUTH_SOCK > /dev/null
         cat ~/.ssh/id_rsa.pub | tee -a ~/.ssh/authorized_keys
         ssh-add ~/.ssh/id_rsa
         
@@ -55,7 +53,7 @@ jobs:
 
     - name: Go Test
       run: |
-        eval $(ssh-agent) >> /dev/null
+        eval $(ssh-agent)
         go test -v ./...
       
     - name: Check auth.log log on failure
