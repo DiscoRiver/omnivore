@@ -53,4 +53,8 @@ func init() {
 
 	// Set defaults in viper
 	config.SetConfigDefaults()
+
+	// Required flags
+	rootCmd.MarkFlagRequired("hosts")
+	rootCmd.MarkFlagRequired("command")
 }
