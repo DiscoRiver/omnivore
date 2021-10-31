@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/discoriver/massh"
 	"github.com/discoriver/omnivore/internal/log"
+	"sync"
 )
 
 var (
@@ -34,6 +35,8 @@ type StreamCycle struct {
 
 	initialised bool
 	cyclePtrMap map[string]map[string]struct{}
+
+	mu sync.Mutex
 }
 
 func newStreamCycle(rc chan massh.Result, numHosts int) *StreamCycle {
@@ -142,18 +145,31 @@ func (s *StreamCycle) AddSlowHost(host string) error {
 	return nil
 }
 
-func (s *StreamCycle) moveHost(host string, loc string) {
-	(*s).cyclePtrMap[loc][host] = struct{}{}
+func (s *StreamCycle) TerminateSlowHosts() error {
 
+
+	return nil
+}
+
+func (s *StreamCycle) moveHost(host string, loc string) {
+	s.mu.Lock()
+	(*s).cyclePtrMap[loc][host] = struct{}{}
+	s.mu.Unlock()
 	// Delete host from TodoHosts
 	s.deleteTodoHost(host)
 }
 
 func (s *StreamCycle) deleteTodoHost(host string) {
+	s.mu.Lock()
+	defer func(){ s.mu.Unlock() }()
+
 	delete((*s).cyclePtrMap[todoHostMapLoc], host)
 }
 
 func (s *StreamCycle) hostIsAlreadyMoved(host string) error {
+	s.mu.Lock()
+	defer func(){ s.mu.Unlock() }()
+
 	if _, ok := s.TodoHosts[host]; ok {
 		return nil
 	}
