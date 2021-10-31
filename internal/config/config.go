@@ -27,6 +27,7 @@ var (
 	UsernameCommandArgsConfigKey = "omni.UserCommandArgs"
 
 	SSHTimeoutConfigKey = "omni.SSHTimeout"
+	CommandTimeoutConfigKey = "omni.CommandTimeout"
 
 	PrivateKeyLocConfigKey = "omni.PrivateKeyLoc"
 	PrivateKeyPassword     = "omni.PrivateKeyPassword"
