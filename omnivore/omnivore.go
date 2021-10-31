@@ -15,14 +15,18 @@ type OmniCommandFlags struct {
 	PrivateKeyLocation string
 	PrivateKeyPassword string
 	Command            string
+
+	// Timeout for the SSH connection
 	SSHTimeout		   int
+	// Timeout for the command execution
+	CommandTimeout	   int
 }
 
 func OmniRun(cmd *OmniCommandFlags) {
 	// This is our OSSH conig only for doing the work, and doesn't include any UI config. This is all background conf.
 	conf := getOSSHConfig(cmd)
 
-	// This should be the last responsibility from the massh package. Handling the Result channel is up to the user.
+	// This should be the last responsibility from the massh package.
 	s, err := conf.Stream()
 	if err != nil {
 		log.OmniLog.Fatal(err.Error())
