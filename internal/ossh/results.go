@@ -147,7 +147,6 @@ func (s *StreamCycle) AddSlowHost(host string) error {
 
 func (s *StreamCycle) TerminateSlowHosts() error {
 
-
 	return nil
 }
 
@@ -161,14 +160,14 @@ func (s *StreamCycle) moveHost(host string, loc string) {
 
 func (s *StreamCycle) deleteTodoHost(host string) {
 	s.mu.Lock()
-	defer func(){ s.mu.Unlock() }()
+	defer func() { s.mu.Unlock() }()
 
 	delete((*s).cyclePtrMap[todoHostMapLoc], host)
 }
 
 func (s *StreamCycle) hostIsAlreadyMoved(host string) error {
 	s.mu.Lock()
-	defer func(){ s.mu.Unlock() }()
+	defer func() { s.mu.Unlock() }()
 
 	if _, ok := s.TodoHosts[host]; ok {
 		return nil

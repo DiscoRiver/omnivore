@@ -26,7 +26,7 @@ var (
 	UsernameCommandConfigKey     = "omni.UsernameCommand"
 	UsernameCommandArgsConfigKey = "omni.UserCommandArgs"
 
-	SSHTimeoutConfigKey = "omni.SSHTimeout"
+	SSHTimeoutConfigKey     = "omni.SSHTimeout"
 	CommandTimeoutConfigKey = "omni.CommandTimeout"
 
 	PrivateKeyLocConfigKey = "omni.PrivateKeyLoc"
@@ -35,8 +35,8 @@ var (
 	ConcurrentWorkerPoolConfigKey = "omni.WorkerPool"
 
 	// Default values where applicable
-	SSHTimeoutDefault = 10
-	PrivateKeyLocDefault = "~/.ssh/id_rsa"
+	SSHTimeoutDefault           = 10
+	PrivateKeyLocDefault        = "~/.ssh/id_rsa"
 	ConcurrentWorkerPoolDefault = 30
 
 	// Custom config file location
@@ -50,7 +50,7 @@ type OmnivoreConfig struct {
 	Command            string
 	Username           string
 	Password           string
-	SSHTimeout		   int
+	SSHTimeout         int
 	PrivateKeyLoc      string
 	PrivateKeyPassword string
 }

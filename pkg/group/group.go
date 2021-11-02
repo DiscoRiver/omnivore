@@ -6,10 +6,6 @@ import (
 	"sync"
 )
 
-const (
-	encodePadding = "0000"
-)
-
 // ValueGrouping contains value/member groupings, and should only be written to by using the AddToGroup method.
 type ValueGrouping struct {
 	// Representing a byte slice as an encoded value for easy equality check. String slice of members.

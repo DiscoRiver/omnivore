@@ -5,8 +5,13 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	"encoding/hex"
-	"golang.org/x/crypto/md4"
 	"hash/crc32"
+
+	"golang.org/x/crypto/md4"
+)
+
+const (
+	encodePadding = "0000"
 )
 
 func EncodeByteSliceToMD5(byt []byte) string {
