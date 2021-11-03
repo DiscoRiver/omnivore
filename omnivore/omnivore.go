@@ -10,7 +10,7 @@ type OmniCommandFlags struct {
 	Command            string
 
 	// Timeout for the SSH connection
-	SSHTimeout		   int
+	SSHTimeout int
 	// Timeout for the command execution
-	CommandTimeout	   int
+	CommandTimeout int
 }
