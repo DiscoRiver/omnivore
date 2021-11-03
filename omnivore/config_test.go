@@ -17,7 +17,7 @@ var (
 
 )
 
-func TestGetOSSHConfigDefaults(t *testing.T) {
+func TestGetOSSHConfigDefaults_UnitWorkflow(t *testing.T) {
 	test.InitTestLogger()
 
 	config.SetConfigDefaults()

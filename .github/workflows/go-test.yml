@@ -3,7 +3,23 @@ name: Go
 on: [push, pull_request]
 
 jobs:
-  build-and-test:
+  Unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Go Build
+        run: go build -v ./...
+
+      - name: Go Test
+        run: go test -v ./... -run _UnitWorkflow
+
+  Integration:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -54,7 +70,7 @@ jobs:
     - name: Go Test
       run: |
         eval $(ssh-agent)
-        go test -v ./...
+        go test -v ./... -run _IntegrationWorkflow
       
     - name: Check auth.log log on failure
       if: ${{ failure() }}

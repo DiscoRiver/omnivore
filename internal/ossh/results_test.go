@@ -18,7 +18,7 @@ var (
 	}
 )
 
-func TestPopulateResultsMap(t *testing.T) {
+func TestPopulateResultsMap_IntegrationWorkflow(t *testing.T) {
 	mockResult = append(mockResult, sampleResult1, sampleResult2)
 	s := StreamCycle{}
 	s.Initialise()

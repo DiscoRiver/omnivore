@@ -10,7 +10,7 @@ import (
 
 // TestStreamWithOutput ensures we can initiate and stream the massh stdout channels when initiated via the OmniSSHConfig
 // funcs.
-func TestStreamWithOutput(t *testing.T) {
+func TestStream_WithOutput_IntegrationWorkflow(t *testing.T) {
 	test.InitTestLogger()
 	conf := OmniSSHConfig{}
 	conf.Config = test.Config

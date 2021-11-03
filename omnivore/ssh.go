@@ -72,9 +72,11 @@ func readStreamWithTimeout(res massh.Result, t time.Duration, wg *sync.WaitGroup
 			fmt.Printf("%s: Finished\n", res.Host)
 			timer.Reset(timeout)
 			wg.Done()
+			return
 		case <-timer.C:
 			fmt.Printf("%s: Timeout due to inactivity\n", res.Host)
 			wg.Done()
+			return
 		}
 	}
 }

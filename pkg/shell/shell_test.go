@@ -7,7 +7,7 @@ import (
 
 var shellTestEnv = "OMNI_TEST"
 
-func TestRunCommand(t *testing.T) {
+func TestRunCommand_IntegrationWorkflow(t *testing.T) {
 	cmd := "echo"
 	arg1 := "hello"
 	arg2 := "world"
@@ -25,7 +25,7 @@ func TestRunCommand(t *testing.T) {
 	}
 }
 
-func TestGetenv(t *testing.T) {
+func TestGetenv_IntegrationWorkflow(t *testing.T) {
 	err := os.Setenv("OMNI_TEST", "some_value")
 	if err != nil {
 		t.Logf("couldn't set environment variable: %s", err)

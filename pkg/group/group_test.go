@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestValueGrouping_AddToGroup(t *testing.T) {
+func TestValueGrouping_AddToGroup_UnitWorkflow(t *testing.T) {
 	i := NewIdentifyingPair("host", []byte("Hello, World"))
 
 	vg := NewValueGrouping()
@@ -18,7 +18,7 @@ func TestValueGrouping_AddToGroup(t *testing.T) {
 	}
 }
 
-func TestValueGrouping_AddToGroup_Present(t *testing.T) {
+func TestValueGrouping_AddToGroup_Present_UnitWorkflow(t *testing.T) {
 	i := NewIdentifyingPair("host", []byte("Hello, World"))
 	i2 := NewIdentifyingPair("host2", []byte("Hello, World"))
 
@@ -33,7 +33,7 @@ func TestValueGrouping_AddToGroup_Present(t *testing.T) {
 	}
 }
 
-func TestValueGrouping_AddToGroup_NotPresent(t *testing.T) {
+func TestValueGrouping_AddToGroup_NotPresent_UnitWorkflow(t *testing.T) {
 	i := NewIdentifyingPair("host", []byte("Hello, World"))
 
 	vg := NewValueGrouping()
@@ -46,7 +46,7 @@ func TestValueGrouping_AddToGroup_NotPresent(t *testing.T) {
 	}
 }
 
-func TestValueGrouping_AddToGroup_Concurrent(t *testing.T) {
+func TestValueGrouping_AddToGroup_Concurrent_UnitWorkflow(t *testing.T) {
 	var iden []*IdentifyingPair
 	iden = append(iden, NewIdentifyingPair("host", []byte("Hello, World")))
 	iden = append(iden, NewIdentifyingPair("host2", []byte("Hello, World")))
@@ -79,7 +79,7 @@ func TestValueGrouping_AddToGroup_Concurrent(t *testing.T) {
 }
 
 // Test when IdentifyingPair has a zero encodedValue due to bad initialisation.
-func TestValueGrouping_AddToGroup_Uninitialised(t *testing.T) {
+func TestValueGrouping_AddToGroup_Uninitialised_UnitWorkflow(t *testing.T) {
 	i := &IdentifyingPair{
 		Key:          "host",
 		Value:        []byte("Hello, World"),
