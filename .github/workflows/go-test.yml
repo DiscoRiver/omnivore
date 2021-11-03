@@ -13,8 +13,8 @@ jobs:
         with:
           go-version: 1.17
 
-  - name: Ensure ssh is installed
-      run: sudo apt update; sudo apt -y install openssh-server
+      - name: Ensure ssh is installed
+        run: sudo apt update; sudo apt -y install openssh-server
 
       - name: Check config
         run: |
