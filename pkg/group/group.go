@@ -14,6 +14,7 @@ type ValueGrouping struct {
 	EncodedValueToOriginal map[string][]byte
 
 	mu sync.Mutex
+	Update chan struct{}
 }
 
 type IdentifyingPair struct {
@@ -64,11 +65,13 @@ func (v *ValueGrouping) AddToGroup(i *IdentifyingPair) {
 	v.EncodedValueGroup[i.encodedValue] = []string{i.Key}
 	v.EncodedValueToOriginal[i.encodedValue] = i.Value
 
+	v.Update <- struct{}{}
 	return
 }
 
 func (v *ValueGrouping) addMembersToExistingGroup(i *IdentifyingPair) {
 	v.EncodedValueGroup[i.encodedValue] = append(v.EncodedValueGroup[i.encodedValue], i.Key)
+	v.Update <- struct{}{}
 }
 
 func (v *ValueGrouping) GetMembers(hash string) ([]string, error) {
