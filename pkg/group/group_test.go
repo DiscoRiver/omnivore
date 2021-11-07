@@ -10,6 +10,9 @@ func TestValueGrouping_AddToGroup_UnitWorkflow(t *testing.T) {
 
 	vg := NewValueGrouping()
 
+	// Make sure we're always reading for updates or it'll block.
+	go checkForUpdates(vg)
+
 	vg.AddToGroup(i)
 
 	if _, ok := vg.EncodedValueGroup[i.encodedValue]; !ok {
@@ -24,6 +27,9 @@ func TestValueGrouping_AddToGroup_Present_UnitWorkflow(t *testing.T) {
 
 	vg := NewValueGrouping()
 
+	// Make sure we're always reading for updates or it'll block.
+	go checkForUpdates(vg)
+
 	vg.AddToGroup(i)
 	vg.AddToGroup(i2)
 
@@ -37,6 +43,9 @@ func TestValueGrouping_AddToGroup_NotPresent_UnitWorkflow(t *testing.T) {
 	i := NewIdentifyingPair("host", []byte("Hello, World"))
 
 	vg := NewValueGrouping()
+
+	// Make sure we're always reading for updates or it'll block.
+	go checkForUpdates(vg)
 
 	vg.AddToGroup(i)
 
@@ -54,6 +63,9 @@ func TestValueGrouping_AddToGroup_Concurrent_UnitWorkflow(t *testing.T) {
 	iden = append(iden, NewIdentifyingPair("host4", []byte("Hello, Worlds")))
 
 	vg := NewValueGrouping()
+
+	// Make sure we're always reading for updates or it'll block.
+	go checkForUpdates(vg)
 
 	AddMemberCreateFunc := func(i *IdentifyingPair, wg *sync.WaitGroup) {
 		vg.AddToGroup(i)
@@ -89,10 +101,21 @@ func TestValueGrouping_AddToGroup_Uninitialised_UnitWorkflow(t *testing.T) {
 
 	vg := NewValueGrouping()
 
+	// Make sure we're always reading for updates or it'll block.
+	go checkForUpdates(vg)
+
 	vg.AddToGroup(i)
 
 	if members, ok := vg.EncodedValueGroup[i.encodedValue]; !ok && members[0] != i.Key {
 		t.Logf("EncodedValueGroup key not present for expect value: %s", i.encodedValue)
 		t.Fail()
+	}
+}
+
+func checkForUpdates(vg *ValueGrouping) {
+	for {
+		select {
+		case <-vg.Update:
+		}
 	}
 }
