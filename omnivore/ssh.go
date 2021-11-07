@@ -1,7 +1,7 @@
 package omnivore
 
 import (
-	"fmt"
+	"github.com/discoriver/omnivore/pkg/group"
 	"sync"
 	"time"
 
@@ -9,7 +9,7 @@ import (
 	"github.com/discoriver/omnivore/internal/log"
 )
 
-func OmniRun(cmd *OmniCommandFlags) {
+func OmniRun(cmd *OmniCommandFlags, grp *group.ValueGrouping) {
 	// This is our OSSH conig only for doing the work, and doesn't include any UI config. This is all background conf.
 	conf := getOSSHConfig(cmd)
 
@@ -25,12 +25,14 @@ func OmniRun(cmd *OmniCommandFlags) {
 	if len(s.HostsResultMap) == len(conf.Config.Hosts) {
 		for k, _ := range s.HostsResultMap {
 			k := k
+
 			go func() {
 				if s.HostsResultMap[k].Error != nil {
-					fmt.Printf("%s: %s\n", s.HostsResultMap[k].Host, s.HostsResultMap[k].Error)
+					// Group similar errors (these are package errors, not ssh Stderr)
+					grp.AddToGroup(group.NewIdentifyingPair(s.HostsResultMap[k].Host, []byte(s.HostsResultMap[k].Error.Error())))
 					wg.Done()
 				} else {
-					readStream(s.HostsResultMap[k], &wg)
+					readStream(s.HostsResultMap[k], grp, &wg)
 				}
 			}()
 		}
@@ -55,7 +57,7 @@ concurrency, but there are mutexes in place anyway.
 For now, I will test the grouping package here only when the command as completed. Real-time grouping
 is more tricky as it requires us to keep creating a new hash for the output if there are multiple lines.
 */
-func readStreamWithTimeout(res massh.Result, t time.Duration, wg *sync.WaitGroup) {
+func readStreamWithTimeout(res massh.Result, t time.Duration, grp *group.ValueGrouping, wg *sync.WaitGroup) {
 	timeout := time.Second * t
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
@@ -63,19 +65,19 @@ func readStreamWithTimeout(res massh.Result, t time.Duration, wg *sync.WaitGroup
 	for {
 		select {
 		case d := <-res.StdOutStream:
-			fmt.Printf("%s: %s", res.Host, d)
+			grp.AddToGroup(group.NewIdentifyingPair(res.Host, d))
 			timer.Reset(timeout)
 		case e := <-res.StdErrStream:
-			fmt.Printf("%s: %s", res.Host, e)
+			grp.AddToGroup(group.NewIdentifyingPair(res.Host, e))
 			timer.Reset(timeout)
 		case <-res.DoneChannel:
 			// Confirm that the host has exited.
-			fmt.Printf("%s: Finished\n", res.Host)
+			log.OmniLog.Info("Host %s finished.", res.Host)
 			timer.Reset(timeout)
 			wg.Done()
 			return
-		case <-timer.C:
-			fmt.Printf("%s: Timeout due to inactivity\n", res.Host)
+		case t := <-timer.C:
+			grp.AddToGroup(group.NewIdentifyingPair(res.Host, []byte(t.String())))
 			wg.Done()
 			return
 		}
@@ -83,17 +85,17 @@ func readStreamWithTimeout(res massh.Result, t time.Duration, wg *sync.WaitGroup
 }
 
 // Read Stdout stream
-func readStream(res massh.Result, wg *sync.WaitGroup) {
+func readStream(res massh.Result, grp *group.ValueGrouping, wg *sync.WaitGroup) {
 	for {
 		select {
 		case d := <-res.StdOutStream:
-			fmt.Printf("%s: %s", res.Host, d)
+			grp.AddToGroup(group.NewIdentifyingPair(res.Host, d))
 		case e := <-res.StdErrStream:
-			fmt.Printf("%s: %s", res.Host, e)
+			grp.AddToGroup(group.NewIdentifyingPair(res.Host, e))
 		case <-res.DoneChannel:
 			// Confirm that the remote command has finished.
-			fmt.Printf("%s: Finished\n", res.Host)
 			wg.Done()
+			return
 		}
 	}
 }

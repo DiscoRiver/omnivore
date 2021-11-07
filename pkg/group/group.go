@@ -39,6 +39,7 @@ func NewValueGrouping() *ValueGrouping {
 	return &ValueGrouping{
 		EncodedValueGroup:      map[string][]string{},
 		EncodedValueToOriginal: map[string][]byte{},
+		Update: make(chan struct{}),
 	}
 }
 
