@@ -36,11 +36,12 @@ func NewIdentifyingPair(Key string, Value []byte) *IdentifyingPair {
 }
 
 func NewValueGrouping() *ValueGrouping {
-	return &ValueGrouping{
+	vg := &ValueGrouping{
 		EncodedValueGroup:      map[string][]string{},
 		EncodedValueToOriginal: map[string][]byte{},
 		Update: make(chan struct{}),
 	}
+	return vg
 }
 
 // AddToGroup creates or adds to an EncodedValueGroup. If an entry already exists for the encoded value provided within

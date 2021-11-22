@@ -27,7 +27,11 @@ func Execute() error {
 }
 
 func init() {
-	log.OmniLog = &log.OmniLogger{FileOutput: os.Stdout}
+	logFile, err := os.OpenFile("/tmp/omni.log", os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		panic(err)
+	}
+	log.OmniLog = &log.OmniLogger{FileOutput: logFile}
 
 	cobra.OnInitialize(log.OmniLog.Init, config.InitConfig)
 

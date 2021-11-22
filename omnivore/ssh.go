@@ -1,6 +1,7 @@
 package omnivore
 
 import (
+	"github.com/discoriver/omnivore/internal/ui"
 	"github.com/discoriver/omnivore/pkg/group"
 	"sync"
 	"time"
@@ -9,7 +10,7 @@ import (
 	"github.com/discoriver/omnivore/internal/log"
 )
 
-func OmniRun(cmd *OmniCommandFlags, grp *group.ValueGrouping) {
+func OmniRun(cmd *OmniCommandFlags) {
 	// This is our OSSH conig only for doing the work, and doesn't include any UI config. This is all background conf.
 	conf := getOSSHConfig(cmd)
 
@@ -18,6 +19,18 @@ func OmniRun(cmd *OmniCommandFlags, grp *group.ValueGrouping) {
 	if err != nil {
 		log.OmniLog.Fatal(err.Error())
 	}
+	ui.DP.StreamCycle = s
+
+	go func(){
+		for {
+			select {
+			case <-ui.DP.Group.Update:
+			default:
+				ui.DP.Refresh()
+				time.Sleep(1 * time.Second)
+			}
+		}
+	}()
 
 	var wg sync.WaitGroup
 	wg.Add(len(conf.Config.Hosts))
@@ -29,10 +42,10 @@ func OmniRun(cmd *OmniCommandFlags, grp *group.ValueGrouping) {
 			go func() {
 				if s.HostsResultMap[k].Error != nil {
 					// Group similar errors (these are package errors, not ssh Stderr)
-					grp.AddToGroup(group.NewIdentifyingPair(s.HostsResultMap[k].Host, []byte(s.HostsResultMap[k].Error.Error())))
+					ui.DP.Group.AddToGroup(group.NewIdentifyingPair(s.HostsResultMap[k].Host, []byte(s.HostsResultMap[k].Error.Error())))
 					wg.Done()
 				} else {
-					readStream(s.HostsResultMap[k], grp, &wg)
+					readStream(s.HostsResultMap[k], ui.DP.Group, &wg)
 				}
 			}()
 		}
