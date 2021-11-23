@@ -34,7 +34,6 @@ func OmniRun(cmd *OmniCommandFlags) {
 
 	var wg sync.WaitGroup
 	wg.Add(len(conf.Config.Hosts))
-
 	if len(s.HostsResultMap) == len(conf.Config.Hosts) {
 		for k, _ := range s.HostsResultMap {
 			k := k
@@ -43,6 +42,12 @@ func OmniRun(cmd *OmniCommandFlags) {
 				if s.HostsResultMap[k].Error != nil {
 					// Group similar errors (these are package errors, not ssh Stderr)
 					ui.DP.Group.AddToGroup(group.NewIdentifyingPair(s.HostsResultMap[k].Host, []byte(s.HostsResultMap[k].Error.Error())))
+
+					err := ui.DP.StreamCycle.AddFailedHost(s.HostsResultMap[k].Host)
+					if err != nil {
+						panic(err)
+					}
+
 					wg.Done()
 				} else {
 					readStream(s.HostsResultMap[k], ui.DP.Group, &wg)
@@ -87,6 +92,7 @@ func readStreamWithTimeout(res massh.Result, t time.Duration, grp *group.ValueGr
 			// Confirm that the host has exited.
 			log.OmniLog.Info("Host %s finished.", res.Host)
 			timer.Reset(timeout)
+			ui.DP.StreamCycle.AddCompletedHost(res.Host)
 			wg.Done()
 			return
 		case t := <-timer.C:
@@ -107,6 +113,7 @@ func readStream(res massh.Result, grp *group.ValueGrouping, wg *sync.WaitGroup) 
 			grp.AddToGroup(group.NewIdentifyingPair(res.Host, e))
 		case <-res.DoneChannel:
 			// Confirm that the remote command has finished.
+			ui.DP.StreamCycle.AddCompletedHost(res.Host)
 			wg.Done()
 			return
 		}

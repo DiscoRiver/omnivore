@@ -51,14 +51,19 @@ func (s *StreamCycle) Initialise() {
 	// Initialise map in struct
 	s.cyclePtrMap = map[string]map[string]struct{}{}
 
-	// Initialise HostResultMap
-	s.HostsResultMap = make(map[string]massh.Result)
+	s.TodoHosts = map[string]struct{}{}
+	s.CompletedHosts = map[string]struct{}{}
+	s.FailedHosts = map[string]struct{}{}
+	s.SlowHosts = map[string]struct{}{}
 
 	// Assign pointers to map for specific states for a host
 	s.cyclePtrMap[todoHostMapLoc] = s.TodoHosts
 	s.cyclePtrMap[completedHostMapLoc] = s.CompletedHosts
 	s.cyclePtrMap[failedHostMapLoc] = s.FailedHosts
 	s.cyclePtrMap[slowHostMapLoc] = s.SlowHosts
+
+	// Initialise HostResultMap
+	s.HostsResultMap = make(map[string]massh.Result)
 
 	s.initialised = true
 
@@ -78,6 +83,7 @@ func (s *StreamCycle) populateResultsMap(ch chan massh.Result, numHosts int) err
 		select {
 		case result := <-ch:
 			s.HostsResultMap[result.Host] = result
+			s.TodoHosts[result.Host] = struct{}{}
 		default:
 			if len(s.HostsResultMap) == numHosts {
 				log.OmniLog.Info(fmt.Sprintf("StreamCycle HostsResultMap populated with %d hosts.", len(s.HostsResultMap)))
