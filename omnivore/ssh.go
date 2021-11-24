@@ -42,15 +42,11 @@ func OmniRun(cmd *OmniCommandFlags) {
 				if s.HostsResultMap[k].Error != nil {
 					// Group similar errors (these are package errors, not ssh Stderr)
 					ui.DP.Group.AddToGroup(group.NewIdentifyingPair(s.HostsResultMap[k].Host, []byte(s.HostsResultMap[k].Error.Error())))
-
-					err := ui.DP.StreamCycle.AddFailedHost(s.HostsResultMap[k].Host)
-					if err != nil {
-						panic(err)
-					}
+					ui.DP.StreamCycle.AddFailedHost(s.HostsResultMap[k].Host)
 
 					wg.Done()
 				} else {
-					readStream(s.HostsResultMap[k], ui.DP.Group, &wg)
+					readStreamWithTimeout(s.HostsResultMap[k], time.Duration(cmd.CommandTimeout)*time.Second, ui.DP.Group, &wg)
 				}
 			}()
 		}
@@ -78,7 +74,10 @@ is more tricky as it requires us to keep creating a new hash for the output if t
 func readStreamWithTimeout(res massh.Result, t time.Duration, grp *group.ValueGrouping, wg *sync.WaitGroup) {
 	timeout := time.Second * t
 	timer := time.NewTimer(timeout)
-	defer timer.Stop()
+	defer func(){
+		timer.Stop()
+		wg.Done()
+	}()
 
 	for {
 		select {
@@ -93,11 +92,9 @@ func readStreamWithTimeout(res massh.Result, t time.Duration, grp *group.ValueGr
 			log.OmniLog.Info("Host %s finished.", res.Host)
 			timer.Reset(timeout)
 			ui.DP.StreamCycle.AddCompletedHost(res.Host)
-			wg.Done()
 			return
-		case t := <-timer.C:
-			grp.AddToGroup(group.NewIdentifyingPair(res.Host, []byte(t.String())))
-			wg.Done()
+		case _ = <-timer.C:
+			grp.AddToGroup(group.NewIdentifyingPair(res.Host, []byte("Activity timeout.")))
 			return
 		}
 	}
