@@ -124,6 +124,8 @@ func (data *Data) Refresh() error {
 
 func layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
+
+	// Hosts to do.
 	if todoView, err := g.SetView("todo", 0, 0, maxX/10, maxY/2-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
@@ -132,6 +134,7 @@ func layout(g *gocui.Gui) error {
 		todoView.Wrap = true
 	}
 
+	// Hosts completed successfully.
 	if completeView, err := g.SetView("complete", 0, maxY/2, maxX/10, maxY-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
@@ -140,6 +143,7 @@ func layout(g *gocui.Gui) error {
 		completeView.Wrap = true
 	}
 
+	// Output grouping.
 	if outputView, err := g.SetView("output", maxX/10+1, 0, maxX/10*9-1, maxY-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
@@ -148,6 +152,7 @@ func layout(g *gocui.Gui) error {
 		outputView.Wrap = true
 	}
 
+	// Hosts failed.
 	if failedView, err := g.SetView("failed", maxX/10*9, 0, maxX-1, maxY/2-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
@@ -156,6 +161,7 @@ func layout(g *gocui.Gui) error {
 		failedView.Wrap = true
 	}
 
+	// Hosts that are slow
 	if slowView, err := g.SetView("slow", maxX/10*9, maxY/2, maxX-1, maxY-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err

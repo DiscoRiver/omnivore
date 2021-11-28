@@ -79,21 +79,24 @@ func readStreamWithTimeout(res massh.Result, t time.Duration, grp *group.ValueGr
 		wg.Done()
 	}()
 
+
+	var bes []byte
 	for {
 		select {
 		case d := <-res.StdOutStream:
-			grp.AddToGroup(group.NewIdentifyingPair(res.Host, d))
+			bes = append(bes, d...)
 			timer.Reset(timeout)
 		case e := <-res.StdErrStream:
-			grp.AddToGroup(group.NewIdentifyingPair(res.Host, e))
+			bes = append(bes, e...)
 			timer.Reset(timeout)
 		case <-res.DoneChannel:
 			// Confirm that the host has exited.
 			log.OmniLog.Info("Host %s finished.", res.Host)
 			timer.Reset(timeout)
+			grp.AddToGroup(group.NewIdentifyingPair(res.Host, bes))
 			ui.DP.StreamCycle.AddCompletedHost(res.Host)
 			return
-		case _ = <-timer.C:
+		case <-timer.C:
 			grp.AddToGroup(group.NewIdentifyingPair(res.Host, []byte("Activity timeout.")))
 			return
 		}
