@@ -2,7 +2,6 @@
 package config
 
 import (
-	"github.com/discoriver/omnivore/internal/store"
 	"os"
 
 	"github.com/discoriver/omnivore/internal/log"
@@ -12,6 +11,7 @@ import (
 
 var (
 	// Config Name and Location
+	defaultConfigDir = "~/.omnivore"
 	defaultConfigName = "config"
 	defaultConfigType = "yaml"
 
@@ -73,7 +73,7 @@ func InitConfig() {
 	} else {
 		// Find log file in home directory (default location)
 		var err error
-		configHome, err = homedir.Expand(store.RootApplicationDataPath)
+		configHome, err = homedir.Expand(defaultConfigDir)
 		if err != nil {
 			log.OmniLog.Fatal("Couldn't find user home directory: %s", err)
 		}
