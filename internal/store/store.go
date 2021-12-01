@@ -12,6 +12,8 @@ import (
 var (
 	base = ".omnivore"
 	history = "history"
+
+	defaultDirPermissions = os.FileMode(0775)
 )
 
 // StorageSession holds directory information about the current application run state.
@@ -53,7 +55,7 @@ func (s *StorageSession) InitBaseDir() {
 		if os.IsNotExist(err) {
 			log.OmniLog.Info("Base directory %s does not exist.", s.BaseDir)
 
-			err = os.MkdirAll(s.BaseDir, 0755)
+			err = os.MkdirAll(s.BaseDir, defaultDirPermissions)
 			if err != nil {
 				log.OmniLog.Fatal("Couldn't create base directory: %s", err.Error())
 			}
@@ -72,7 +74,7 @@ func (s *StorageSession) InitHistoryDir() {
 		if os.IsNotExist(err) {
 			log.OmniLog.Info("History directory %s does not exist.", s.HistoryDir)
 
-			err = os.Mkdir(s.HistoryDir, 0755)
+			err = os.Mkdir(s.HistoryDir, defaultDirPermissions)
 			if err != nil {
 				log.OmniLog.Fatal("Couldn't create history directory: %s", err.Error())
 			}
@@ -91,7 +93,7 @@ func (s *StorageSession) InitHistoryDir() {
 // set by func setSessionTimestamp
 func (s *StorageSession) InitSessionDirectory() {
 	// Parents should exist or program should've terminated by here.
-	if err := os.Mkdir(s.SessionDir, 0755); err != nil {
+	if err := os.Mkdir(s.SessionDir, defaultDirPermissions); err != nil {
 		log.OmniLog.Fatal("Couldn't create session directory: %s", err.Error())
 	}
 
@@ -101,7 +103,7 @@ func (s *StorageSession) InitSessionDirectory() {
 // InitHostDirs creates host-named directory within ~/.omnivore/history.
 func (s *StorageSession) InitHostDir(name string) {
 	// Parents should exist or program should've terminated by here.
-	if err := os.Mkdir(s.SessionDir + string(os.PathSeparator) + name, 0755); err != nil {
+	if err := os.Mkdir(s.SessionDir + string(os.PathSeparator) + name, defaultDirPermissions); err != nil {
 		log.OmniLog.Fatal("Couldn't create host directory: %s", err.Error())
 	}
 
