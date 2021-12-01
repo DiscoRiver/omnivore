@@ -49,54 +49,62 @@ func NewStorageSession() *StorageSession {
 
 // InitBaseDir ensures the directory ~/.omnivore/ exists, creating it if necessary.
 func (s *StorageSession) InitBaseDir() {
-	if _, err := os.Stat(s.BaseDir); err == os.ErrNotExist {
-		log.OmniLog.Info("BaseDir directory %s does not exist.", s.BaseDir)
+	if _, err := os.Stat(s.BaseDir); err != nil {
+		if os.IsNotExist(err) {
+			log.OmniLog.Info("Base directory %s does not exist.", s.BaseDir)
 
-		err = os.MkdirAll(s.BaseDir, 0655)
-		if err != nil {
-			log.OmniLog.Fatal("Couldn't create base directory: %s", err.Error())
+			err = os.MkdirAll(s.BaseDir, 0755)
+			if err != nil {
+				log.OmniLog.Fatal("Couldn't create base directory: %s", err.Error())
+			}
+
+			log.OmniLog.Info("Base directory %s was created.", s.BaseDir)
+			return
 		}
-
-		log.OmniLog.Info("BaseDir directory %s was created.", s.BaseDir)
 	}
 
-	log.OmniLog.Info("BaseDir directory %s already exists.", s.BaseDir)
+	log.OmniLog.Info("Base directory %s already exists.", s.BaseDir)
 }
 
 // InitHistoryDir ensures the directory ~/.omnivore/history exists, creating it if necessary.
 func (s *StorageSession) InitHistoryDir() {
-	if _, err := os.Stat(s.HistoryDir); err == os.ErrNotExist {
-		log.OmniLog.Info("HistoryDir directory %s does not exist.", s.HistoryDir)
+	if _, err := os.Stat(s.HistoryDir); err != nil {
+		if os.IsNotExist(err) {
+			log.OmniLog.Info("History directory %s does not exist.", s.HistoryDir)
 
-		err = os.Mkdir(s.HistoryDir, 0655)
-		if err != nil {
+			err = os.Mkdir(s.HistoryDir, 0755)
+			if err != nil {
+				log.OmniLog.Fatal("Couldn't create history directory: %s", err.Error())
+			}
+
+			log.OmniLog.Info("History directory %s was created.", s.HistoryDir)
+			return
+		} else {
 			log.OmniLog.Fatal("Couldn't create history directory: %s", err.Error())
 		}
-
-		log.OmniLog.Info("HistoryDir directory %s was created.", s.HistoryDir)
 	}
 
-	log.OmniLog.Info("HistoryDir directory %s already exists.", s.HistoryDir)
+	log.OmniLog.Info("History directory %s already exists.", s.HistoryDir)
 }
 
 // InitSessionDirectory creates a directory to hold session output in ~/.omnivore/history using the unix timestamp
 // set by func setSessionTimestamp
 func (s *StorageSession) InitSessionDirectory() {
 	// Parents should exist or program should've terminated by here.
-	if err := os.Mkdir(s.HistoryDir+ string(os.PathSeparator) + s.Timestamp, 0655); err != nil {
+	if err := os.Mkdir(s.SessionDir, 0755); err != nil {
 		log.OmniLog.Fatal("Couldn't create session directory: %s", err.Error())
 	}
 
-	log.OmniLog.Info("HistoryDir directory %s was created.", s.HistoryDir)
+	log.OmniLog.Info("Session directory %s was created.", s.SessionDir)
 }
 
 // InitHostDirs creates host-named directory within ~/.omnivore/history.
 func (s *StorageSession) InitHostDir(name string) {
 	// Parents should exist or program should've terminated by here.
-	if err := os.Mkdir(s.SessionDir + string(os.PathSeparator) + name, 0655); err != nil {
+	if err := os.Mkdir(s.SessionDir + string(os.PathSeparator) + name, 0755); err != nil {
 		log.OmniLog.Fatal("Couldn't create host directory: %s", err.Error())
 	}
 
-	log.OmniLog.Info("HistoryDir directory %s was created.", s.HistoryDir)
+	log.OmniLog.Info("History directory %s was created.", s.HistoryDir)
 }
 
