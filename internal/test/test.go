@@ -1,3 +1,4 @@
+// Package test contains relevant test parameters.
 package test
 
 import (

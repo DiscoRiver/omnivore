@@ -1,4 +1,5 @@
-package store
+// Package path provides file path utilities.
+package path
 
 import "github.com/mitchellh/go-homedir"
 

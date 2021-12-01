@@ -4,6 +4,7 @@ package store
 import (
 	"fmt"
 	"github.com/discoriver/omnivore/internal/log"
+	"github.com/discoriver/omnivore/internal/path"
 	"os"
 	"time"
 )
@@ -28,7 +29,7 @@ func NewStorageSession() *StorageSession {
 	s := &StorageSession{}
 
 	var err error
-	if s.UserHome, err = GetUserHome(); err != nil {
+	if s.UserHome, err = path.GetUserHome(); err != nil {
 		log.OmniLog.Fatal("Unable to get user home: %s", err.Error())
 	}
 
@@ -37,6 +38,11 @@ func NewStorageSession() *StorageSession {
 
 	s.Timestamp = fmt.Sprintf("%d", time.Now().UnixNano())
 	s.SessionDir = s.HistoryDir + string(os.PathSeparator) + s.Timestamp
+
+	// Just initialise the directories here
+	s.InitBaseDir()
+	s.InitHistoryDir()
+	s.InitSessionDirectory()
 
 	return s
 }
