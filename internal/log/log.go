@@ -2,12 +2,13 @@ package log
 
 import (
 	"fmt"
+	"github.com/discoriver/omnivore/internal/path"
 	"log"
 	"os"
 )
 
 var (
-	defaultLogLoc = "/var/log/omnivore.log"
+	defaultLogLoc = "~/.omnivore/log.txt"
 
 	OmniLog *OmniLogger
 )
@@ -79,9 +80,14 @@ func (o *OmniLogger) Fatal(format string, args ...interface{}) {
 }
 
 func (o *OmniLogger) Init() {
+	defaultLogExpanded, err := path.ExpandUserHome(defaultLogLoc)
+	if err != nil {
+		log.Fatalf("Couldn't expand user home: %s", err)
+	}
+
 	if o.FileOutput == nil {
 		var err error
-		o.FileOutput, err = os.OpenFile(defaultLogLoc, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+		o.FileOutput, err = os.OpenFile(defaultLogExpanded, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 		if err != nil {
 			log.Fatal(err)
 		}
