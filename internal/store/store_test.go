@@ -1,7 +1,6 @@
 package store
 
 import (
-	"fmt"
 	"github.com/discoriver/omnivore/internal/test"
 	"testing"
 )
@@ -9,6 +8,6 @@ import (
 func TestNewStorageSession(t *testing.T) {
 	test.InitTestLogger()
 
-	ss := NewStorageSession()
-	fmt.Println(ss.BaseDir)
+	NewStorageSession()
+
 }

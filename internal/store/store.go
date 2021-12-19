@@ -34,7 +34,7 @@ func NewStorageSession() {
 
 	var err error
 	if Session.UserHome, err = path.GetUserHome(); err != nil {
-		log.Fatalf("Unable to get user home: %Session\n", err.Error())
+		log.Fatalf("Unable to get user home: %s\n", err.Error())
 	}
 
 	Session.BaseDir = Session.UserHome + string(os.PathSeparator) + base
