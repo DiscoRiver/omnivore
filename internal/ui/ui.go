@@ -11,9 +11,10 @@ import (
 var (
 	DP *Data
 )
+
 // Data needed for UI to process.
 type Data struct {
-	Group *group.ValueGrouping
+	Group       *group.ValueGrouping
 	StreamCycle *ossh.StreamCycle
 
 	UI *gocui.Gui

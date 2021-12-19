@@ -13,7 +13,7 @@ type ValueGrouping struct {
 	// Preserve original byte slice
 	EncodedValueToOriginal map[string][]byte
 
-	mu sync.Mutex
+	mu     sync.Mutex
 	Update chan struct{}
 }
 
@@ -39,7 +39,7 @@ func NewValueGrouping() *ValueGrouping {
 	vg := &ValueGrouping{
 		EncodedValueGroup:      map[string][]string{},
 		EncodedValueToOriginal: map[string][]byte{},
-		Update: make(chan struct{}),
+		Update:                 make(chan struct{}),
 	}
 	return vg
 }

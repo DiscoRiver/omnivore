@@ -21,7 +21,7 @@ func OmniRun(cmd *OmniCommandFlags) {
 	}
 	ui.DP.StreamCycle = s
 
-	go func(){
+	go func() {
 		for {
 			select {
 			case <-ui.DP.Group.Update:
@@ -74,11 +74,10 @@ is more tricky as it requires us to keep creating a new hash for the output if t
 func readStreamWithTimeout(res massh.Result, t time.Duration, grp *group.ValueGrouping, wg *sync.WaitGroup) {
 	timeout := time.Second * t
 	timer := time.NewTimer(timeout)
-	defer func(){
+	defer func() {
 		timer.Stop()
 		wg.Done()
 	}()
-
 
 	var bes []byte
 	for {
