@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"fmt"
 	"github.com/discoriver/omnivore/internal/config"
 	"github.com/discoriver/omnivore/internal/log"
+	"github.com/discoriver/omnivore/internal/store"
 	"github.com/discoriver/omnivore/omnivore"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -27,7 +29,8 @@ func Execute() error {
 }
 
 func init() {
-	logFile, err := os.OpenFile("/tmp/omni.log", os.O_CREATE|os.O_WRONLY, 0666)
+	store.NewStorageSession()
+	logFile, err := os.OpenFile(fmt.Sprintf("%s/%s", store.Session.SessionDir, "log.txt"), os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		panic(err)
 	}

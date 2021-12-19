@@ -11,7 +11,7 @@ import (
 
 var (
 	// Config Name and Location
-	defaultConfigDir = "~/.omnivore"
+	defaultConfigDir  = "~/.omnivore"
 	defaultConfigName = "config"
 	defaultConfigType = "yaml"
 
