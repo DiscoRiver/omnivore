@@ -27,6 +27,7 @@ type IdentifyingPair struct {
 	mu sync.Mutex
 }
 
+// Creates a new IdentifyingPair, using the provide Key and Value pair. This can then be added to a new ValueGrouping, or otherwise processed.
 func NewIdentifyingPair(Key string, Value []byte) *IdentifyingPair {
 	return &IdentifyingPair{
 		Key:          Key,
@@ -35,6 +36,7 @@ func NewIdentifyingPair(Key string, Value []byte) *IdentifyingPair {
 	}
 }
 
+// Initialised a new ValueGrouping used to populate
 func NewValueGrouping() *ValueGrouping {
 	vg := &ValueGrouping{
 		EncodedValueGroup:      map[string][]string{},

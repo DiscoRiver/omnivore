@@ -13,7 +13,7 @@ This program was developed alongside https://github.com/discoriver/massh, and is
 
 ## Acknowledgements
 
-- Dee, for enriching my life and encouraging me to be the best version of myself so I can finish this project.
+- Dee, for enriching my life for a time.
 - Tim for putting his trust in me to do good work.
 - Adam & Bryan for helping me see the value.
 - Alysha for always propping up my ego.

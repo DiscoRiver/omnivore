@@ -4,6 +4,7 @@ package store
 import (
 	"fmt"
 	"github.com/discoriver/omnivore/internal/path"
+	"github.com/discoriver/omnivore/pkg/group"
 	"log"
 	"os"
 	"time"
@@ -15,6 +16,7 @@ var (
 
 	defaultDirPermissions = os.FileMode(0775)
 
+	// Session is initalised with NewStorageSession, used for file operations.
 	Session *StorageSession
 )
 
@@ -25,8 +27,6 @@ type StorageSession struct {
 	BaseDir    string
 	HistoryDir string
 	SessionDir string
-
-	hostDirs []string
 }
 
 func NewStorageSession() {
@@ -86,11 +86,17 @@ func (s *StorageSession) InitSessionDirectory() {
 	}
 }
 
-// InitHostDirs creates host-named directory within ~/.omnivore/history.
+// InitHostDir creates host-named directory within ~/.omnivore/history.
 func (s *StorageSession) InitHostDir(name string) {
 	// Parents should exist or program should've terminated by here.
 	if err := os.Mkdir(s.SessionDir+string(os.PathSeparator)+name, defaultDirPermissions); err != nil {
 		log.Fatalf("Couldn't create host directory: %s\n", err.Error())
 	}
+}
+
+// WriteOutputFileForHost writes the content of an identifying pair to a file, for future processing out of memory. The identifying pair's key should always be the hostname.
+func (s *StorageSession) WriteOutputFileForHost(idp *group.IdentifyingPair) {
+	// Key should always be be the hostname.
+	//filePath := s.SessionDir + string(os.PathSeparator) + idp.Key
 
 }
