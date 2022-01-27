@@ -1,6 +1,7 @@
 package omnivore
 
 import (
+	"github.com/discoriver/omnivore/internal/ui"
 	"github.com/discoriver/omnivore/pkg/group"
 	"sync"
 	"time"
@@ -9,7 +10,7 @@ import (
 	"github.com/discoriver/omnivore/internal/log"
 )
 
-func OmniRun(cmd *OmniCommandFlags, grp *group.ValueGrouping) {
+func OmniRun(cmd *OmniCommandFlags) {
 	// This is our OSSH conig only for doing the work, and doesn't include any UI config. This is all background conf.
 	conf := getOSSHConfig(cmd)
 
@@ -18,10 +19,21 @@ func OmniRun(cmd *OmniCommandFlags, grp *group.ValueGrouping) {
 	if err != nil {
 		log.OmniLog.Fatal(err.Error())
 	}
+	ui.DP.StreamCycle = s
+
+	go func() {
+		for {
+			select {
+			case <-ui.DP.Group.Update:
+			default:
+				ui.DP.Refresh()
+				time.Sleep(1 * time.Second)
+			}
+		}
+	}()
 
 	var wg sync.WaitGroup
 	wg.Add(len(conf.Config.Hosts))
-
 	if len(s.HostsResultMap) == len(conf.Config.Hosts) {
 		for k, _ := range s.HostsResultMap {
 			k := k
@@ -29,10 +41,12 @@ func OmniRun(cmd *OmniCommandFlags, grp *group.ValueGrouping) {
 			go func() {
 				if s.HostsResultMap[k].Error != nil {
 					// Group similar errors (these are package errors, not ssh Stderr)
-					grp.AddToGroup(group.NewIdentifyingPair(s.HostsResultMap[k].Host, []byte(s.HostsResultMap[k].Error.Error())))
+					ui.DP.Group.AddToGroup(group.NewIdentifyingPair(s.HostsResultMap[k].Host, []byte(s.HostsResultMap[k].Error.Error())))
+					ui.DP.StreamCycle.AddFailedHost(s.HostsResultMap[k].Host)
+
 					wg.Done()
 				} else {
-					readStream(s.HostsResultMap[k], grp, &wg)
+					readStreamWithTimeout(s.HostsResultMap[k], time.Duration(cmd.CommandTimeout)*time.Second, ui.DP.Group, &wg)
 				}
 			}()
 		}
@@ -60,25 +74,29 @@ is more tricky as it requires us to keep creating a new hash for the output if t
 func readStreamWithTimeout(res massh.Result, t time.Duration, grp *group.ValueGrouping, wg *sync.WaitGroup) {
 	timeout := time.Second * t
 	timer := time.NewTimer(timeout)
-	defer timer.Stop()
+	defer func() {
+		timer.Stop()
+		wg.Done()
+	}()
 
+	var bes []byte
 	for {
 		select {
 		case d := <-res.StdOutStream:
-			grp.AddToGroup(group.NewIdentifyingPair(res.Host, d))
+			bes = append(bes, d...)
 			timer.Reset(timeout)
 		case e := <-res.StdErrStream:
-			grp.AddToGroup(group.NewIdentifyingPair(res.Host, e))
+			bes = append(bes, e...)
 			timer.Reset(timeout)
 		case <-res.DoneChannel:
 			// Confirm that the host has exited.
 			log.OmniLog.Info("Host %s finished.", res.Host)
 			timer.Reset(timeout)
-			wg.Done()
+			grp.AddToGroup(group.NewIdentifyingPair(res.Host, bes))
+			ui.DP.StreamCycle.AddCompletedHost(res.Host)
 			return
-		case t := <-timer.C:
-			grp.AddToGroup(group.NewIdentifyingPair(res.Host, []byte(t.String())))
-			wg.Done()
+		case <-timer.C:
+			grp.AddToGroup(group.NewIdentifyingPair(res.Host, []byte("Activity timeout.")))
 			return
 		}
 	}
@@ -94,6 +112,7 @@ func readStream(res massh.Result, grp *group.ValueGrouping, wg *sync.WaitGroup) 
 			grp.AddToGroup(group.NewIdentifyingPair(res.Host, e))
 		case <-res.DoneChannel:
 			// Confirm that the remote command has finished.
+			ui.DP.StreamCycle.AddCompletedHost(res.Host)
 			wg.Done()
 			return
 		}

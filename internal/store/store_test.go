@@ -8,5 +8,6 @@ import (
 func TestNewStorageSession(t *testing.T) {
 	test.InitTestLogger()
 
-	_ = NewStorageSession()
+	NewStorageSession()
+
 }

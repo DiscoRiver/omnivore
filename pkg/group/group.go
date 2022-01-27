@@ -13,7 +13,7 @@ type ValueGrouping struct {
 	// Preserve original byte slice
 	EncodedValueToOriginal map[string][]byte
 
-	mu sync.Mutex
+	mu     sync.Mutex
 	Update chan struct{}
 }
 
@@ -27,6 +27,7 @@ type IdentifyingPair struct {
 	mu sync.Mutex
 }
 
+// Creates a new IdentifyingPair, using the provide Key and Value pair. This can then be added to a new ValueGrouping, or otherwise processed.
 func NewIdentifyingPair(Key string, Value []byte) *IdentifyingPair {
 	return &IdentifyingPair{
 		Key:          Key,
@@ -35,12 +36,14 @@ func NewIdentifyingPair(Key string, Value []byte) *IdentifyingPair {
 	}
 }
 
+// Initialised a new ValueGrouping used to populate
 func NewValueGrouping() *ValueGrouping {
-	return &ValueGrouping{
+	vg := &ValueGrouping{
 		EncodedValueGroup:      map[string][]string{},
 		EncodedValueToOriginal: map[string][]byte{},
-		Update: make(chan struct{}),
+		Update:                 make(chan struct{}),
 	}
+	return vg
 }
 
 // AddToGroup creates or adds to an EncodedValueGroup. If an entry already exists for the encoded value provided within

@@ -1,8 +1,7 @@
 package omnivore
 
 import (
-	"fmt"
-	"github.com/discoriver/omnivore/pkg/group"
+	"github.com/discoriver/omnivore/internal/ui"
 )
 
 type OmniCommandFlags struct {
@@ -21,20 +20,8 @@ type OmniCommandFlags struct {
 }
 
 func Run(cmd *OmniCommandFlags) {
-	grp := group.NewValueGrouping()
+	ui.MakeDP()
 
-	go func(){
-		for {
-			select {
-			case <-grp.Update:
-				for k, i := range grp.EncodedValueGroup {
-					for h := range i {
-						fmt.Println(i[h], string(grp.EncodedValueToOriginal[k]))
-					}
-				}
-			}
-		}
-	}()
-
-	OmniRun(cmd, grp)
+	go OmniRun(cmd)
+	ui.DP.StartUI()
 }

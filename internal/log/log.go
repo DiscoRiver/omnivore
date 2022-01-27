@@ -26,11 +26,12 @@ type OmniLogger struct {
 }
 
 func (o *OmniLogger) Info(format string, args ...interface{}) {
+	infoPrefix := "INFO: "
 	var s string
 	if len(args) == 0 {
-		s = format
+		s = infoPrefix + format
 	} else {
-		s = fmt.Sprintf(format, args...)
+		s = infoPrefix + fmt.Sprintf(format, args...)
 	}
 
 	o.info.Println(s)
@@ -39,11 +40,12 @@ func (o *OmniLogger) Info(format string, args ...interface{}) {
 }
 
 func (o *OmniLogger) Warn(format string, args ...interface{}) {
+	warnPrefix := "WARNING: "
 	var s string
 	if len(args) == 0 {
-		s = format
+		s = warnPrefix + format
 	} else {
-		s = fmt.Sprintf(format, args...)
+		s = warnPrefix + fmt.Sprintf(format, args...)
 	}
 
 	o.warn.Println(s)
@@ -52,11 +54,12 @@ func (o *OmniLogger) Warn(format string, args ...interface{}) {
 }
 
 func (o *OmniLogger) Error(format string, args ...interface{}) {
+	errorPrefix := "ERROR: "
 	var s string
 	if len(args) == 0 {
-		s = format
+		s = errorPrefix + format
 	} else {
-		s = fmt.Sprintf(format, args...)
+		s = errorPrefix + fmt.Sprintf(format, args...)
 	}
 
 	o.er.Println(s)
@@ -65,11 +68,12 @@ func (o *OmniLogger) Error(format string, args ...interface{}) {
 }
 
 func (o *OmniLogger) Fatal(format string, args ...interface{}) {
+	fatalPrefix := "FATAL: "
 	var s string
 	if len(args) == 0 {
-		s = format
+		s = fatalPrefix + format
 	} else {
-		s = fmt.Sprintf(format, args...)
+		s = fatalPrefix + fmt.Sprintf(format, args...)
 	}
 
 	o.fatal.Println(s)
@@ -87,14 +91,16 @@ func (o *OmniLogger) Init() {
 
 	if o.FileOutput == nil {
 		var err error
-		o.FileOutput, err = os.OpenFile(defaultLogExpanded, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+		o.FileOutput, err = os.OpenFile(defaultLogExpanded, os.O_APPEND|os.O_CREATE, 0666)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	o.info = log.New(o.FileOutput, "INFO: ", log.Ldate|log.Ltime)
-	o.warn = log.New(o.FileOutput, "WARNING: ", log.Ldate|log.Ltime)
-	o.er = log.New(o.FileOutput, "ERROR: ", log.Ldate|log.Ltime)
-	o.fatal = log.New(o.FileOutput, "FATAL: ", log.Ldate|log.Ltime)
+	o.info = log.New(o.FileOutput, "", log.Ldate|log.Lmicroseconds)
+	o.warn = log.New(o.FileOutput, "", log.Ldate|log.Lmicroseconds)
+	o.er = log.New(o.FileOutput, "", log.Ldate|log.Lmicroseconds)
+	o.fatal = log.New(o.FileOutput, "", log.Ldate|log.Lmicroseconds)
+
+	o.info.Println("Omnivore Started.")
 }
