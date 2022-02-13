@@ -15,7 +15,7 @@ func OmniRun(cmd *OmniCommandFlags) {
 	conf := getOSSHConfig(cmd)
 
 	// This should be the last responsibility from the massh package.
-	s, err := conf.Stream()
+	s, err := conf.Stream() // <-- Slow to return if host doesn't connect
 	if err != nil {
 		log.OmniLog.Fatal(err.Error())
 	}
@@ -46,7 +46,7 @@ func OmniRun(cmd *OmniCommandFlags) {
 
 					wg.Done()
 				} else {
-					readStreamWithTimeout(s.HostsResultMap[k], time.Duration(cmd.CommandTimeout)*time.Second, ui.DP.Group, &wg)
+					readStreamWithTimeout(s.HostsResultMap[k], time.Duration(cmd.CommandTimeout), ui.DP.Group, &wg)
 				}
 			}()
 		}
