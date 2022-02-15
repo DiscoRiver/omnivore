@@ -6,6 +6,7 @@ import (
 	"github.com/discoriver/omnivore/internal/test"
 	"sync"
 	"testing"
+	"time"
 )
 
 // TestStreamWithOutput ensures we can initiate and stream the massh stdout channels when initiated via the OmniSSHConfig
@@ -28,30 +29,34 @@ func TestStream_WithOutput_IntegrationWorkflow(t *testing.T) {
 		t.Logf("Stream failed to initiate: %s", err)
 	}
 
+	// Add all our hosts now, before we start processing output.
+	for host, _ := range conf.Config.Hosts {
+		s.TodoHosts[host] = struct{}{}
+	}
+
 	var wg sync.WaitGroup
 	wg.Add(len(conf.Config.Hosts))
 
-	if len(s.HostsResultMap) == len(conf.Config.Hosts) {
-		for k, _ := range s.HostsResultMap {
-			k := k
+	//TODO: There might be some weird behaviour here depending on how a host fails to connect, but it's not urgent in this test.
+	for {
+		select {
+		case k := <-s.HostsResultChan:
+			t.Logf("Read from s.HostsResultChan\n")
 			go func() {
-				if s.HostsResultMap[k].Error != nil {
-					fmt.Printf("%s: %s\n", s.HostsResultMap[k].Host, s.HostsResultMap[k].Error)
+				if k.Error != nil {
+					// Group similar errors (these are package errors, not ssh Stderr)
+					t.Logf("result error: %s", k.Error)
 					wg.Done()
 				} else {
-					readStream(s.HostsResultMap[k], &wg)
+					test.ReadStreamWithTimeout(k, 5*time.Second, &wg, t)
 				}
 			}()
-		}
-	} else {
-		t.Errorf("number of hosts expected %v, got %v", len(conf.Config.Hosts), len(s.HostsResultMap))
-	}
-
-	for {
-		if massh.NumberOfStreamingHostsCompleted == len(s.HostsResultMap) {
-			wg.Wait()
-			t.Log("All hosts finished.")
-			break
+		default:
+			if massh.NumberOfStreamingHostsCompleted == len(conf.Config.Hosts) {
+				wg.Wait()
+				t.Logf("All hosts finished.\n")
+				return
+			}
 		}
 	}
 }

@@ -24,6 +24,7 @@ var (
 // back into the TodoHosts map once moved.
 type StreamCycle struct {
 	HostsResultChan chan massh.Result
+	NumHostsInit    int
 
 	// Lifecycle begin
 	TodoHosts map[string]struct{}
@@ -75,15 +76,15 @@ func (s *StreamCycle) isInitialised() bool {
 }
 
 func (s *StreamCycle) populateResultsMap(ch chan massh.Result, numHosts int) {
-	sent := 0
 	for {
 		select {
 		case result := <-ch:
 			s.HostsResultChan <- result
-			sent++
+			s.NumHostsInit++
 		default:
-			if sent == numHosts {
+			if s.NumHostsInit == numHosts {
 				log.OmniLog.Info(fmt.Sprintf("StreamCycle finished. HostsResultMap populated with a total of %d hosts.", numHosts))
+				return
 			}
 		}
 	}
