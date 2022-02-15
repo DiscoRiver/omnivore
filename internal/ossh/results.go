@@ -25,6 +25,7 @@ var (
 type StreamCycle struct {
 	HostsResultChan chan massh.Result
 	NumHostsInit    int
+	Command         string
 
 	// Lifecycle begin
 	TodoHosts map[string]struct{}
@@ -79,6 +80,9 @@ func (s *StreamCycle) populateResultsMap(ch chan massh.Result, numHosts int) {
 	for {
 		select {
 		case result := <-ch:
+			if s.Command == "" {
+				s.Command = result.Job
+			}
 			s.HostsResultChan <- result
 			s.NumHostsInit++
 		default:

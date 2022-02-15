@@ -121,6 +121,7 @@ func readStreamWithTimeout(res massh.Result, t time.Duration, grp *group.ValueGr
 			return
 		case <-timer.C:
 			grp.AddToGroup(group.NewIdentifyingPair(res.Host, []byte("Activity timeout.")))
+			ui.DP.StreamCycle.AddSlowHost(res.Host)
 			return
 		}
 	}
