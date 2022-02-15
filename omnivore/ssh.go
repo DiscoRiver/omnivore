@@ -1,6 +1,7 @@
 package omnivore
 
 import (
+	"fmt"
 	"github.com/discoriver/omnivore/internal/ui"
 	"github.com/discoriver/omnivore/pkg/group"
 	"sync"
@@ -10,7 +11,7 @@ import (
 	"github.com/discoriver/omnivore/internal/log"
 )
 
-func OmniRun(cmd *OmniCommandFlags) {
+func OmniRun(cmd *OmniCommandFlags, safe chan struct{}, uiStarted chan struct{}) {
 	// This is our OSSH conig only for doing the work, and doesn't include any UI config. This is all background conf.
 	conf := getOSSHConfig(cmd)
 
@@ -21,10 +22,37 @@ func OmniRun(cmd *OmniCommandFlags) {
 	}
 	ui.DP.StreamCycle = s
 
+	// Add all our hosts now, before we start processing output.
+	for host, _ := range conf.Config.Hosts {
+		s.TodoHosts[host] = struct{}{}
+	}
+
+	/*
+		Tell the UI it's safe to start, and wait for it to report that it's safe to start interacting with it.
+
+		Avoids a race condition where the UI isn't initialised before we try to update it.
+	*/
+	safe <- struct{}{}
+	waitForUI := func() {
+		t := time.NewTimer(5 * time.Second)
+		for {
+			select {
+			case <-uiStarted:
+				return
+			case <-t.C: // This should never happen, but just in case.
+				fmt.Println("UI is not stating in a timely manner. Please wait, or press CTRL+C to quit.")
+				t.Stop()
+			}
+		}
+	}
+	waitForUI()
+
+	// Begin updating the UI panels.
 	go func() {
 		for {
 			select {
 			case <-ui.DP.Group.Update:
+				ui.DP.Refresh()
 			default:
 				ui.DP.Refresh()
 				time.Sleep(1 * time.Second)
@@ -32,33 +60,29 @@ func OmniRun(cmd *OmniCommandFlags) {
 		}
 	}()
 
+	// Start processing output.
 	var wg sync.WaitGroup
 	wg.Add(len(conf.Config.Hosts))
-	if len(s.HostsResultMap) == len(conf.Config.Hosts) {
-		for k, _ := range s.HostsResultMap {
-			k := k
-
+	for {
+		select {
+		case k := <-s.HostsResultChan:
 			go func() {
-				if s.HostsResultMap[k].Error != nil {
+				if k.Error != nil {
 					// Group similar errors (these are package errors, not ssh Stderr)
-					ui.DP.Group.AddToGroup(group.NewIdentifyingPair(s.HostsResultMap[k].Host, []byte(s.HostsResultMap[k].Error.Error())))
-					ui.DP.StreamCycle.AddFailedHost(s.HostsResultMap[k].Host)
+					ui.DP.Group.AddToGroup(group.NewIdentifyingPair(k.Host, []byte(k.Error.Error())))
+					ui.DP.StreamCycle.AddFailedHost(k.Host)
 
 					wg.Done()
 				} else {
-					readStreamWithTimeout(s.HostsResultMap[k], time.Duration(cmd.CommandTimeout), ui.DP.Group, &wg)
+					readStreamWithTimeout(k, time.Duration(cmd.CommandTimeout), ui.DP.Group, &wg)
 				}
 			}()
-		}
-	} else {
-		log.OmniLog.Error("number of hosts expected %v, got %v", len(conf.Config.Hosts), len(s.HostsResultMap))
-	}
-
-	for {
-		if massh.NumberOfStreamingHostsCompleted == len(s.HostsResultMap) {
-			wg.Wait()
-			log.OmniLog.Info("All hosts finished.")
-			break
+		default:
+			if massh.NumberOfStreamingHostsCompleted == len(conf.Config.Hosts) {
+				wg.Wait()
+				log.OmniLog.Info("All hosts finished.")
+				break
+			}
 		}
 	}
 }

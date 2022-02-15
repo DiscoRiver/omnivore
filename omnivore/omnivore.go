@@ -22,6 +22,14 @@ type OmniCommandFlags struct {
 func Run(cmd *OmniCommandFlags) {
 	ui.MakeDP()
 
-	go OmniRun(cmd)
-	ui.DP.StartUI()
+	// Used to avoid race condition in UI initialisation.
+	safeToStartUI := make(chan struct{}, 1)
+	uiStarted := make(chan struct{}, 1)
+
+	go OmniRun(cmd, safeToStartUI, uiStarted)
+
+	select {
+	case <-safeToStartUI:
+		ui.DP.StartUI(uiStarted) // Is blocking, code below this line will not start.
+	}
 }

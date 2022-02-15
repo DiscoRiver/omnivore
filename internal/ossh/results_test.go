@@ -22,6 +22,7 @@ func TestPopulateResultsMap_IntegrationWorkflow(t *testing.T) {
 	mockResult = append(mockResult, sampleResult1, sampleResult2)
 	s := StreamCycle{}
 	s.Initialise()
+
 	ch := make(chan massh.Result)
 
 	for i := range mockResult {
@@ -29,17 +30,17 @@ func TestPopulateResultsMap_IntegrationWorkflow(t *testing.T) {
 		go func() { ch <- mockResult[i] }()
 	}
 
-	err := s.populateResultsMap(ch, len(mockResult))
-	if err != nil {
-		t.Log(err)
-		t.FailNow()
-	}
-
-	if len(s.HostsResultMap) == len(mockResult) {
-		if _, ok := s.HostsResultMap["host1"]; !ok {
-			t.FailNow()
+	go func() {
+		for {
+			select {
+			case <-s.HostsResultChan:
+			}
 		}
-	} else {
-		t.Errorf("number of hosts expected %v, got %v", len(mockResult), len(s.HostsResultMap))
+	}()
+
+	s.populateResultsMap(ch, len(mockResult))
+
+	if s.NumHostsInit != len(mockResult) {
+		t.Errorf("number of hosts expected %v, got %v", len(mockResult), s.NumHostsInit)
 	}
 }

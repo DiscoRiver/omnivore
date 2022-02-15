@@ -31,6 +31,7 @@ func (c *OmniSSHConfig) Stream() (*StreamCycle, error) {
 	// TODO: There is a choke point here when a host does not connect. It waits until the SSH timeout before continuing.
 	ss := newStreamCycle(c.StreamChan, len(c.Config.Hosts))
 
+	log.OmniLog.Info("Returning StreamCycle")
 	return ss, nil
 }
 
