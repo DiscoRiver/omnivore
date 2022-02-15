@@ -177,7 +177,7 @@ func (data *Data) Refresh() error {
 		vw.Clear()
 
 		fmt.Fprintf(vw, "%s", red(data.StreamCycle.Command))
-		
+
 		return nil
 	})
 
@@ -244,7 +244,7 @@ func layout(g *gocui.Gui) error {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		commandView.Title = "Status"
+		commandView.Title = "Command"
 		commandView.Wrap = true
 	}
 
