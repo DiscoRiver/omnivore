@@ -23,7 +23,7 @@ var (
 // must be moved to one of the termination maps when the massh.Result.DoneChannel is written to. Hosts must not be moved
 // back into the TodoHosts map once moved.
 type StreamCycle struct {
-	HostsResultMap map[string]massh.Result
+	HostsResultChan chan massh.Result
 
 	// Lifecycle begin
 	TodoHosts map[string]struct{}
@@ -42,7 +42,7 @@ type StreamCycle struct {
 func newStreamCycle(rc chan massh.Result, numHosts int) *StreamCycle {
 	ss := &StreamCycle{}
 	ss.Initialise()
-	ss.populateResultsMap(rc, numHosts)
+	go ss.populateResultsMap(rc, numHosts) //hanging point
 	return ss
 }
 
@@ -63,7 +63,7 @@ func (s *StreamCycle) Initialise() {
 	s.cyclePtrMap[slowHostMapLoc] = s.SlowHosts
 
 	// Initialise HostResultMap
-	s.HostsResultMap = make(map[string]massh.Result)
+	s.HostsResultChan = make(chan massh.Result)
 
 	s.initialised = true
 
@@ -74,21 +74,16 @@ func (s *StreamCycle) isInitialised() bool {
 	return s.initialised
 }
 
-func (s *StreamCycle) populateResultsMap(ch chan massh.Result, numHosts int) error {
-	if !s.isInitialised() {
-		return ErrStreamCycleNotInitialised
-	}
-
+func (s *StreamCycle) populateResultsMap(ch chan massh.Result, numHosts int) {
+	sent := 0
 	for {
 		select {
 		case result := <-ch:
-			s.HostsResultMap[result.Host] = result
-			s.TodoHosts[result.Host] = struct{}{}
+			s.HostsResultChan <- result
+			sent++
 		default:
-			if len(s.HostsResultMap) == numHosts {
-				log.OmniLog.Info(fmt.Sprintf("StreamCycle HostsResultMap populated with %d hosts.", len(s.HostsResultMap)))
-
-				return nil
+			if sent == numHosts {
+				log.OmniLog.Info(fmt.Sprintf("StreamCycle finished. HostsResultMap populated with a total of %d hosts.", numHosts))
 			}
 		}
 	}
