@@ -42,7 +42,7 @@ func getOSSHConfig(cmd *OmniCommandFlags) *ossh.OmniSSHConfig {
 		var err error
 		conf.Config.SSHConfig.HostKeyCallback, err = ossh.GetKnownHosts()
 		if err != nil {
-			log.OmniLog.Fatal("Couldn't get known_hosts for host key callback.", err)
+			log.OmniLog.Fatal("Couldn't get known_hosts for host key callback: %s", err)
 		}
 	}
 
