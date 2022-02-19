@@ -11,13 +11,12 @@ import (
 )
 
 var (
-	DP            *Data
-	magenta       = color.New(color.FgMagenta).SprintFunc()
-	yellow        = color.New(color.FgYellow).SprintFunc()
-	green         = color.New(color.FgGreen).SprintFunc()
-	red           = color.New(color.FgRed).SprintFunc()
-	colorLoop     = []func(a ...interface{}) string{magenta, yellow, green, red}
-	prevColorLoop = 0
+	DP         *Data
+	magenta    = color.New(color.FgMagenta).SprintFunc()
+	yellow     = color.New(color.FgYellow).SprintFunc()
+	green      = color.New(color.FgGreen).SprintFunc()
+	red        = color.New(color.FgRed).SprintFunc()
+	logShowing = false
 )
 
 // Data needed for UI to process.
@@ -52,6 +51,20 @@ func (data *Data) StartUI(started chan struct{}) {
 		panic(err)
 	}
 
+	err = data.UI.SetKeybinding("", 'l', gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if logShowing == false {
+			_, err := g.SetViewOnTop("log")
+			logShowing = true
+
+			return err
+		} else {
+			_, err := g.SetViewOnBottom("log")
+			logShowing = false
+
+			return err
+		}
+	})
+
 	// Report that it's safe to refresh.
 	started <- struct{}{}
 
@@ -65,6 +78,18 @@ func (data *Data) Close() {
 }
 
 func (data *Data) Refresh() error {
+	data.UI.Update(func(g *gocui.Gui) error {
+		vw, err := g.View("log")
+		if err != nil {
+			return err
+		}
+
+		vw.Clear()
+
+		fmt.Fprintf(vw, strings.Join(log.OmniLog.Messages, "\n"))
+		return nil
+	})
+
 	data.UI.Update(func(g *gocui.Gui) error {
 		vw, err := g.View("status")
 		if err != nil {
@@ -186,6 +211,15 @@ func (data *Data) Refresh() error {
 
 func layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
+
+	if logView, err := g.SetView("log", maxX/4, maxY/4, maxX-10, maxY-10); err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+		logView.Title = "Log"
+		logView.Wrap = true
+		logView.Autoscroll = true
+	}
 
 	if statusView, err := g.SetView("status", 0, 0, maxX-1, maxY/20); err != nil {
 		if err != gocui.ErrUnknownView {

@@ -34,12 +34,21 @@ func getOSSHConfig(cmd *OmniCommandFlags) *ossh.OmniSSHConfig {
 	conf.Config.SSHConfig.Timeout = time.Duration(viper.GetInt(config.SSHTimeoutConfigKey)) * time.Second
 	conf.AddWorkerPool(viper.GetInt(config.ConcurrentWorkerPoolConfigKey))
 
-	// FROM OTHER
-	conf.Config.SSHConfig.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+	// Add HostKeyCallback
+	if cmd.Insecure {
+		log.OmniLog.Warn("Running in INSECURE MODE, known_hosts will be ignored.")
+		conf.Config.SSHConfig.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+	} else {
+		var err error
+		conf.Config.SSHConfig.HostKeyCallback, err = ossh.GetKnownHosts()
+		if err != nil {
+			log.OmniLog.Fatal("Couldn't get known_hosts for host key callback.")
+		}
+	}
 
 	// SSH_AUTH_SOCK auth
-	if err := conf.AddSSHSockAuth(); err != nil {
-		log.OmniLog.Warn("Couldn't add SSH_AUTH_SOCK: %s", err)
+	if err := conf.AddAgent(); err != nil {
+		log.OmniLog.Warn("Couldn't add agent (SSH_AUTH_SOCK): %s", err)
 	}
 
 	conf.StreamChan = make(chan massh.Result)

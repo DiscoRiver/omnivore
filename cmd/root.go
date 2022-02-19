@@ -48,6 +48,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&omniFlags.Command, "command", "c", "", "SSH command to execute.")
 	rootCmd.Flags().IntVarP(&omniFlags.SSHTimeout, "ssh-timeout", "t", 0, "SSH connection timeout.")
 	rootCmd.Flags().IntVarP(&omniFlags.CommandTimeout, "command-timeout", "d", 0, "Remote command inactivity timeout.")
+	rootCmd.Flags().BoolVarP(&omniFlags.Insecure, "insecure", "x", false, "Ignore host key callback and run in insecure mode.")
 
 	// Persistent Flags
 	rootCmd.PersistentFlags().StringVar(&config.ConfigFileLoc, "config", "", "Config file to use with Omnivore.")

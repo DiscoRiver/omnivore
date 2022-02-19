@@ -63,28 +63,31 @@ func OmniRun(cmd *OmniCommandFlags, safe chan struct{}, uiStarted chan struct{})
 	// Start processing output.
 	var wg sync.WaitGroup
 	wg.Add(len(conf.Config.Hosts))
-	for {
-		select {
-		case k := <-s.HostsResultChan:
-			go func() {
-				if k.Error != nil {
-					// Group similar errors (these are package errors, not ssh Stderr)
-					ui.DP.Group.AddToGroup(group.NewIdentifyingPair(k.Host, []byte(k.Error.Error())))
-					ui.DP.StreamCycle.AddFailedHost(k.Host)
+	processResults := func() {
+		for {
+			select {
+			case k := <-s.HostsResultChan:
+				go func() {
+					if k.Error != nil {
+						// Group similar errors (these are package errors, not ssh Stderr)
+						ui.DP.Group.AddToGroup(group.NewIdentifyingPair(k.Host, []byte(k.Error.Error())))
+						ui.DP.StreamCycle.AddFailedHost(k.Host)
 
-					wg.Done()
-				} else {
-					readStreamWithTimeout(k, time.Duration(cmd.CommandTimeout), ui.DP.Group, &wg)
+						wg.Done()
+					} else {
+						readStreamWithTimeout(k, time.Duration(cmd.CommandTimeout), ui.DP.Group, &wg)
+					}
+				}()
+			default:
+				if massh.NumberOfStreamingHostsCompleted == len(conf.Config.Hosts) {
+					wg.Wait()
+					log.OmniLog.Info("All hosts finished.")
+					return
 				}
-			}()
-		default:
-			if massh.NumberOfStreamingHostsCompleted == len(conf.Config.Hosts) {
-				wg.Wait()
-				log.OmniLog.Info("All hosts finished.")
-				break
 			}
 		}
 	}
+	processResults()
 }
 
 /*

@@ -28,12 +28,13 @@ func (c *OmniSSHConfig) Stream() (*StreamCycle, error) {
 	}
 	log.OmniLog.Info("Massh Streaming started successfully.")
 
-	// TODO: There is a choke point here when a host does not connect. It waits until the SSH timeout before continuing.
 	ss := newStreamCycle(c.StreamChan, len(c.Config.Hosts))
 
 	log.OmniLog.Info("Returning StreamCycle")
 	return ss, nil
 }
+
+// Abstractions from MASSH, mostly.
 
 // AddHosts populated OmniSSHConfig with target hosts.
 func (c *OmniSSHConfig) AddHosts(h []string) {
@@ -79,9 +80,11 @@ func (c *OmniSSHConfig) AddPrivateKeyAuth(keyPath string, password string) (err 
 	return nil
 }
 
-// AddSSHSockAuth sets the SSH_AUTH_SOCK variable for auth in massh.Config.
-func (c *OmniSSHConfig) AddSSHSockAuth() error {
-	c.Config.SetSSHAuthSock()
+// AddAgent sets the SSH_AUTH_SOCK variable for auth in massh.Config.
+func (c *OmniSSHConfig) AddAgent() error {
+	return c.Config.SetSSHAuthSock()
+}
 
-	return nil
+func (c *OmniSSHConfig) AddHostKeyCallback(callback ssh.HostKeyCallback) {
+	c.Config.SetSSHHostKeyCallback(callback)
 }

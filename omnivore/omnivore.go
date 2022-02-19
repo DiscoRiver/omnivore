@@ -17,6 +17,9 @@ type OmniCommandFlags struct {
 	SSHTimeout int
 	// Timeout for the command execution
 	CommandTimeout int
+
+	// Insecure mode
+	Insecure bool
 }
 
 func Run(cmd *OmniCommandFlags) {
