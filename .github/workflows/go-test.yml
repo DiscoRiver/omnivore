@@ -36,6 +36,10 @@ jobs:
         run: >
           ssh-keygen -t rsa -f ~/.ssh/id_rsa
 
+      - name: Create known_hosts
+        run: >
+          touch ~/.ssh/known_hosts
+
       - name: Add key to auth file
         run: >
           cat ~/.ssh/id_rsa.pub | tee -a ~/.ssh/authorized_keys
