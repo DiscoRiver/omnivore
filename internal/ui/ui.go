@@ -17,6 +17,12 @@ var (
 	green      = color.New(color.FgGreen).SprintFunc()
 	red        = color.New(color.FgRed).SprintFunc()
 	logShowing = false
+
+	// Keybinds
+	toggleLog      = 'l'
+	exitOmni       = 'q'
+	exitStandard   = gocui.KeyCtrlC
+	controlsString = "QUIT (q) - SHOW/HIDE LOG (l)"
 )
 
 // Data needed for UI to process.
@@ -43,15 +49,33 @@ func (data *Data) StartUI(started chan struct{}) {
 
 	data.UI.SetManagerFunc(layout)
 
-	if err := data.UI.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
+	if err := data.setKeybinds(); err != nil {
 		panic(err)
 	}
 
-	if err := data.UI.SetKeybinding("", gocui.KeyArrowLeft, gocui.ModNone, update); err != nil {
-		panic(err)
+	// Report that it's safe to refresh.
+	started <- struct{}{}
+
+	if err := data.UI.MainLoop(); err != nil && err != gocui.ErrQuit {
+		log.OmniLog.Fatal("Error")
+	}
+}
+
+func (data *Data) setKeybinds() error {
+	var err error
+
+	// Normal exit of CTRL+C
+	if err = data.UI.SetKeybinding("", exitStandard, gocui.ModNone, quit); err != nil {
+		return err
 	}
 
-	err = data.UI.SetKeybinding("", 'l', gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+	// Exit with q
+	if err = data.UI.SetKeybinding("", exitOmni, gocui.ModNone, quit); err != nil {
+		return err
+	}
+
+	// Toggle log window to front
+	err = data.UI.SetKeybinding("", toggleLog, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if logShowing == false {
 			_, err := g.SetViewOnTop("log")
 			logShowing = true
@@ -65,12 +89,7 @@ func (data *Data) StartUI(started chan struct{}) {
 		}
 	})
 
-	// Report that it's safe to refresh.
-	started <- struct{}{}
-
-	if err := data.UI.MainLoop(); err != nil && err != gocui.ErrQuit {
-		log.OmniLog.Fatal("Error")
-	}
+	return nil
 }
 
 func (data *Data) Close() {
@@ -206,6 +225,19 @@ func (data *Data) Refresh() error {
 		return nil
 	})
 
+	data.UI.Update(func(g *gocui.Gui) error {
+		vw, err := g.View("controls")
+		if err != nil {
+			return err
+		}
+
+		vw.Clear()
+
+		fmt.Fprintf(vw, "%s", controlsString)
+
+		return nil
+	})
+
 	return nil
 }
 
@@ -274,11 +306,19 @@ func layout(g *gocui.Gui) error {
 		slowView.Wrap = true
 	}
 
-	if commandView, err := g.SetView("command", 0, maxY-4, maxX-1, maxY-1); err != nil {
+	if commandView, err := g.SetView("command", 0, maxY-4, maxX/2-1, maxY-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
 		commandView.Title = "Command"
+		commandView.Wrap = true
+	}
+
+	if commandView, err := g.SetView("controls", maxX/2, maxY-4, maxX-1, maxY-1); err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+		commandView.Title = "controls"
 		commandView.Wrap = true
 	}
 
