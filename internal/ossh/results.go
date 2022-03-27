@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/discoriver/massh"
 	"github.com/discoriver/omnivore/internal/log"
+	"sort"
 	"sync"
 )
 
@@ -70,6 +71,16 @@ func (s *StreamCycle) Initialise() {
 	s.initialised = true
 
 	log.OmniLog.Info("StreamCycle was initialised.")
+}
+
+func GetSortedHostMapKeys(m map[string]struct{}) []string {
+	var keys []string
+	for k, _ := range m {
+		keys = append(keys, k)
+	}
+
+	sort.Strings(keys)
+	return keys
 }
 
 func (s *StreamCycle) isInitialised() bool {

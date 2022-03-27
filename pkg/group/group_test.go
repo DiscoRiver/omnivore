@@ -112,6 +112,25 @@ func TestValueGrouping_AddToGroup_Uninitialised_UnitWorkflow(t *testing.T) {
 	}
 }
 
+func TestGetSortedGroupMapKeys_UnitWorkflow(t *testing.T) {
+	i := NewIdentifyingPair("host", []byte("Hello, World"))
+	i2 := NewIdentifyingPair("host2", []byte("Hello, World 2"))
+
+	vg := NewValueGrouping()
+
+	// Make sure we're always reading for updates or it'll block.
+	go checkForUpdates(vg)
+
+	vg.AddToGroup(i)
+	vg.AddToGroup(i2)
+
+	expected := 2
+	if len(GetSortedGroupMapKeys(vg.EncodedValueGroup)) != expected {
+		t.Logf("Expected %d keys from map, got %d", expected, len(GetSortedGroupMapKeys(vg.EncodedValueGroup)))
+		t.Fail()
+	}
+}
+
 func checkForUpdates(vg *ValueGrouping) {
 	for {
 		select {

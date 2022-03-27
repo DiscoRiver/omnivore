@@ -3,6 +3,7 @@ package group
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 )
 
@@ -44,6 +45,18 @@ func NewValueGrouping() *ValueGrouping {
 		Update:                 make(chan struct{}),
 	}
 	return vg
+}
+
+func GetSortedGroupMapKeys(m map[string][]string) []string {
+	var keys []string
+	for k, _ := range m {
+		if k != "" {
+			keys = append(keys, k)
+		}
+	}
+
+	sort.Strings(keys)
+	return keys
 }
 
 // AddToGroup creates or adds to an EncodedValueGroup. If an entry already exists for the encoded value provided within
