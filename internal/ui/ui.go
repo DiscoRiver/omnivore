@@ -137,7 +137,6 @@ func (data *Data) Refresh() error {
 
 		if data.Group.EncodedValueGroup != nil {
 			keys := group.GetSortedGroupMapKeys(data.Group.EncodedValueGroup)
-			log.OmniLog.Info("%v", len(keys))
 
 			for _, n := range keys {
 				fmt.Fprintf(vw, "Hosts: %s\n\t Output: %s\n\n", yellow(strings.Join(data.Group.EncodedValueGroup[n], ", ")), magenta(fmt.Sprintf("%s", data.Group.EncodedValueToOriginal[n])))
