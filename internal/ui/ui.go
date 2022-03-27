@@ -136,8 +136,11 @@ func (data *Data) Refresh() error {
 		vw.Clear()
 
 		if data.Group.EncodedValueGroup != nil {
-			for k, v := range data.Group.EncodedValueGroup {
-				fmt.Fprintf(vw, "Hosts: %s\n\t Output: %s\n\n", yellow(strings.Join(v, ", ")), magenta(fmt.Sprintf("%s", data.Group.EncodedValueToOriginal[k])))
+			keys := group.GetSortedGroupMapKeys(data.Group.EncodedValueGroup)
+			log.OmniLog.Info("%v", len(keys))
+
+			for _, n := range keys {
+				fmt.Fprintf(vw, "Hosts: %s\n\t Output: %s\n\n", yellow(strings.Join(data.Group.EncodedValueGroup[n], ", ")), magenta(fmt.Sprintf("%s", data.Group.EncodedValueToOriginal[n])))
 			}
 		}
 
@@ -153,8 +156,8 @@ func (data *Data) Refresh() error {
 		vw.Clear()
 
 		if data.StreamCycle.TodoHosts != nil {
-			for h := range data.StreamCycle.TodoHosts {
-				fmt.Fprintf(vw, "%s\n", green(h))
+			for _, v := range ossh.GetSortedHostMapKeys(data.StreamCycle.TodoHosts) {
+				fmt.Fprintf(vw, "%s\n", green(v))
 			}
 		}
 
@@ -170,8 +173,8 @@ func (data *Data) Refresh() error {
 		vw.Clear()
 
 		if data.StreamCycle.CompletedHosts != nil {
-			for h := range data.StreamCycle.CompletedHosts {
-				fmt.Fprintf(vw, "%s\n", green(h))
+			for _, v := range ossh.GetSortedHostMapKeys(data.StreamCycle.CompletedHosts) {
+				fmt.Fprintf(vw, "%s\n", green(v))
 			}
 		}
 
@@ -187,8 +190,8 @@ func (data *Data) Refresh() error {
 		vw.Clear()
 
 		if data.StreamCycle.FailedHosts != nil {
-			for h := range data.StreamCycle.FailedHosts {
-				fmt.Fprintf(vw, "%s\n", red(h))
+			for _, v := range ossh.GetSortedHostMapKeys(data.StreamCycle.FailedHosts) {
+				fmt.Fprintf(vw, "%s\n", red(v))
 			}
 		}
 
@@ -204,8 +207,8 @@ func (data *Data) Refresh() error {
 		vw.Clear()
 
 		if data.StreamCycle.SlowHosts != nil {
-			for h := range data.StreamCycle.SlowHosts {
-				fmt.Fprintf(vw, "%s\n", yellow(h))
+			for _, v := range ossh.GetSortedHostMapKeys(data.StreamCycle.SlowHosts) {
+				fmt.Fprintf(vw, "%s\n", yellow(v))
 			}
 		}
 

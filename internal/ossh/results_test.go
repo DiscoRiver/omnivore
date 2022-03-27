@@ -44,3 +44,15 @@ func TestPopulateResultsMap_IntegrationWorkflow(t *testing.T) {
 		t.Errorf("number of hosts expected %v, got %v", len(mockResult), s.NumHostsInit)
 	}
 }
+
+func TestGetSortedHostMapKeys(t *testing.T) {
+	m := map[string]struct{}{}
+
+	m["host1"] = struct{}{}
+	m["host2"] = struct{}{}
+
+	expected := 2
+	if len(GetSortedHostMapKeys(m)) != expected {
+		t.Errorf("expected %d keys from map, got %d", expected, len(GetSortedHostMapKeys(m)))
+	}
+}
