@@ -1,5 +1,3 @@
-NOTE: Currently in development...
-
 ![Designed by dgim-studio / Freepik](https://github.com/DiscoRiver/omnivore/blob/main/asset/omnivore_logo.png)
 Logo designed by dgim-studio
 
