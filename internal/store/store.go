@@ -3,6 +3,7 @@ package store
 
 import (
 	"fmt"
+	ovlog "github.com/discoriver/omnivore/internal/log"
 	"github.com/discoriver/omnivore/internal/path"
 	"github.com/discoriver/omnivore/pkg/group"
 	"log"
@@ -18,6 +19,9 @@ var (
 
 	// Session is initalised with NewStorageSession, used for file operations.
 	Session *StorageSession
+
+	// Trouble writing host output?
+	hostFileWriteFailure bool
 )
 
 // StorageSession holds directory information about the current application run state.
@@ -96,7 +100,15 @@ func (s *StorageSession) InitHostDir(name string) {
 
 // WriteOutputFileForHost writes the content of an identifying pair to a file, for future processing out of memory. The identifying pair's key should always be the hostname.
 func (s *StorageSession) WriteOutputFileForHost(idp *group.IdentifyingPair) {
-	// Key should always be be the hostname.
-	//filePath := s.SessionDir + string(os.PathSeparator) + idp.Key
+	// Key should always be the hostname in Omnivore
+	filePath := s.SessionDir + string(os.PathSeparator) + idp.Key
 
+	// Don't log fatal here, as the application can still be allowed to function in-memory.
+	if err := os.WriteFile(filePath, idp.Value, defaultDirPermissions); err != nil {
+		ovlog.OmniLog.Warn("Couldn't write host output file: %s", err.Error())
+
+		// TODO: Have application continue to run in-memory if writing these files fails.
+		hostFileWriteFailure = true
+	}
+	ovlog.OmniLog.Info("Written host output file for %s", idp.Key)
 }
