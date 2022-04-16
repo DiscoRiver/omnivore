@@ -2,6 +2,7 @@ package omnivore
 
 import (
 	"fmt"
+	"github.com/discoriver/omnivore/internal/store"
 	"github.com/discoriver/omnivore/internal/ui"
 	"github.com/discoriver/omnivore/pkg/group"
 	"sync"
@@ -70,8 +71,14 @@ func OmniRun(cmd *OmniCommandFlags, safe chan struct{}, uiStarted chan struct{})
 				go func() {
 					if k.Error != nil {
 						// Group similar errors (these are package errors, not ssh Stderr)
-						ui.DP.Group.AddToGroup(group.NewIdentifyingPair(k.Host, []byte(k.Error.Error())))
+						hostErrOutput := group.NewIdentifyingPair(k.Host, []byte(k.Error.Error()))
+						ui.DP.Group.AddToGroup(hostErrOutput)
 						ui.DP.StreamCycle.AddFailedHost(k.Host)
+
+						// This will print package errors, which includes dial errors to the host, so we include it here
+						// as it's "technically" output, and is displayed on the UI. Although not strictly stderr,
+						// it is still a response from interacting with the SSH protocol.
+						store.Session.WriteOutputFileForHost(hostErrOutput)
 
 						wg.Done()
 					} else {
@@ -119,8 +126,10 @@ func readStreamWithTimeout(res massh.Result, t time.Duration, grp *group.ValueGr
 			// Confirm that the host has exited.
 			log.OmniLog.Info("Host %s finished.", res.Host)
 			timer.Reset(timeout)
-			grp.AddToGroup(group.NewIdentifyingPair(res.Host, bes))
+			hostOutputPair := group.NewIdentifyingPair(res.Host, bes)
+			grp.AddToGroup(hostOutputPair)
 			ui.DP.StreamCycle.AddCompletedHost(res.Host)
+			store.Session.WriteOutputFileForHost(hostOutputPair)
 			return
 		case <-timer.C:
 			grp.AddToGroup(group.NewIdentifyingPair(res.Host, []byte("Activity timeout.")))

@@ -102,5 +102,7 @@ func (o *OmniLogger) Init() {
 	o.er = log.New(o.FileOutput, "", log.Ldate|log.Lmicroseconds)
 	o.fatal = log.New(o.FileOutput, "", log.Ldate|log.Lmicroseconds)
 
-	o.info.Println("Omnivore Started.")
+	o.info.Println("-----------------------------------------------")
+	o.info.Println("************** Omnivore Started. **************")
+	o.info.Println("-----------------------------------------------")
 }
