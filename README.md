@@ -12,10 +12,15 @@ This program was developed alongside https://github.com/discoriver/massh, and is
 - Ability for scripts to be executed.
 - Ability to retry failed hosts a configurable number of times.
 - Better SSH key handling.
+- Omnivore will eventually offload in-memory storage of host output to files within `~/.omnivore/history/`, however we need to build a system for preserving in-memory functionality as a fallback if writing fails, to avoid crashing completely.
 
 ## Known Issues
 
 - If using iTerm2 on MacOS, you will need to edit your profile, and under the `Terminal` heading, uncheck the option `Save lines to scrollback in alternate screen mode`. Leaving this option checked will cause major trauma to your scroll buffer when resizing the terminal window when Omnivore is running.
+
+## Noteworthy
+
+- Application logs are located at `~/.omnivore/history/`. There is a timestamped directory for each run of omnivore, containing a file for each host containing it's output, and a log file for that run. 
 
 ## Testing
 
