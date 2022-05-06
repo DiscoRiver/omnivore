@@ -138,20 +138,3 @@ func readStreamWithTimeout(res massh.Result, t time.Duration, grp *group.ValueGr
 		}
 	}
 }
-
-// Read Stdout stream
-func readStream(res massh.Result, grp *group.ValueGrouping, wg *sync.WaitGroup) {
-	for {
-		select {
-		case d := <-res.StdOutStream:
-			grp.AddToGroup(group.NewIdentifyingPair(res.Host, d))
-		case e := <-res.StdErrStream:
-			grp.AddToGroup(group.NewIdentifyingPair(res.Host, e))
-		case <-res.DoneChannel:
-			// Confirm that the remote command has finished.
-			ui.DP.StreamCycle.AddCompletedHost(res.Host)
-			wg.Done()
-			return
-		}
-	}
-}
