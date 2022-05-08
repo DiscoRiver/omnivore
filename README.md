@@ -5,7 +5,7 @@ Omnivore is an interactive distributed SSH tool. Designed to quickly identify ou
 
 This program was developed alongside https://github.com/discoriver/massh, and is tightly integrated with it. It's my hope that Omnivore not only serves as a useful tool, but also as a demonstration of how one might utilise `Massh` elegantly to provide powerful programs that require advanced SSH output processing.
 
-![demo-2](./asset/demo-2.gif)
+![demo-2](./asset/demo-4.gif)
 
 ## Upcoming features
 - Generally more interactive ability from within the program itself. Running new commands on the same host set, changing public key used, viewing output for individual hosts in their own views etc.
