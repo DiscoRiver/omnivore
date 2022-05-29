@@ -33,8 +33,8 @@ type InterfaceCollective struct {
 	UI *gocui.Gui
 }
 
-// MakeDP initialises a new
-func MakeDP() {
+// MakeCollective initialised a new InterfaceCollective to ui.Collective
+func MakeCollective() {
 	Collective = &InterfaceCollective{}
 	Collective.Group = group.NewValueGrouping()
 }

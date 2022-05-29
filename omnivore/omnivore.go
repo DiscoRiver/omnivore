@@ -23,7 +23,7 @@ type OmniCommandFlags struct {
 }
 
 func Run(cmd *OmniCommandFlags) {
-	ui.MakeDP()
+	ui.MakeCollective()
 
 	/*
 		Used to avoid race condition in UI initialisation.
