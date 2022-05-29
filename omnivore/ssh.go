@@ -21,7 +21,7 @@ func OmniRun(cmd *OmniCommandFlags, safe chan struct{}, uiStarted chan struct{})
 	if err != nil {
 		log.OmniLog.Fatal(err.Error())
 	}
-	ui.DP.StreamCycle = s
+	ui.Collective.StreamCycle = s
 
 	// Add all our hosts now, before we start processing output.
 	for host, _ := range conf.Config.Hosts {
@@ -52,10 +52,10 @@ func OmniRun(cmd *OmniCommandFlags, safe chan struct{}, uiStarted chan struct{})
 	go func() {
 		for {
 			select {
-			case <-ui.DP.Group.Update:
-				ui.DP.Refresh()
+			case <-ui.Collective.Group.Update:
+				ui.Collective.Refresh()
 			default:
-				ui.DP.Refresh()
+				ui.Collective.Refresh()
 				time.Sleep(1 * time.Second)
 			}
 		}
@@ -72,8 +72,8 @@ func OmniRun(cmd *OmniCommandFlags, safe chan struct{}, uiStarted chan struct{})
 					if k.Error != nil {
 						// Group similar errors (these are package errors, not ssh Stderr)
 						hostErrOutput := group.NewIdentifyingPair(k.Host, []byte(k.Error.Error()))
-						ui.DP.Group.AddToGroup(hostErrOutput)
-						ui.DP.StreamCycle.AddFailedHost(k.Host)
+						ui.Collective.Group.AddToGroup(hostErrOutput)
+						ui.Collective.StreamCycle.AddFailedHost(k.Host)
 
 						// This will print package errors, which includes dial errors to the host, so we include it here
 						// as it's "technically" output, and is displayed on the UI. Although not strictly stderr,
@@ -82,7 +82,7 @@ func OmniRun(cmd *OmniCommandFlags, safe chan struct{}, uiStarted chan struct{})
 
 						wg.Done()
 					} else {
-						readStreamWithTimeout(k, time.Duration(cmd.CommandTimeout), ui.DP.Group, &wg)
+						readStreamWithTimeout(k, time.Duration(cmd.CommandTimeout), ui.Collective.Group, &wg)
 					}
 				}()
 			default:
@@ -128,12 +128,12 @@ func readStreamWithTimeout(res massh.Result, t time.Duration, grp *group.ValueGr
 			timer.Reset(timeout)
 			hostOutputPair := group.NewIdentifyingPair(res.Host, bes)
 			grp.AddToGroup(hostOutputPair)
-			ui.DP.StreamCycle.AddCompletedHost(res.Host)
+			ui.Collective.StreamCycle.AddCompletedHost(res.Host)
 			store.Session.WriteOutputFileForHost(hostOutputPair)
 			return
 		case <-timer.C:
 			grp.AddToGroup(group.NewIdentifyingPair(res.Host, []byte("Activity timeout.")))
-			ui.DP.StreamCycle.AddSlowHost(res.Host)
+			ui.Collective.StreamCycle.AddSlowHost(res.Host)
 			return
 		}
 	}

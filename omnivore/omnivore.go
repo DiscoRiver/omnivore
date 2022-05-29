@@ -43,6 +43,6 @@ func Run(cmd *OmniCommandFlags) {
 
 	select {
 	case <-safeToStartUI:
-		ui.DP.StartUI(uiStarted) // Is blocking, code below this line will not start.
+		ui.Collective.StartUI(uiStarted) // Is blocking, code below this line will not start.
 	}
 }

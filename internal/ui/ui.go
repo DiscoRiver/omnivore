@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	DP         *Data
+	Collective *InterfaceCollective
 	magenta    = color.New(color.FgMagenta).SprintFunc()
 	yellow     = color.New(color.FgYellow).SprintFunc()
 	green      = color.New(color.FgGreen).SprintFunc()
@@ -25,20 +25,21 @@ var (
 	controlsString = "QUIT (q) - SHOW/HIDE LOG (l)"
 )
 
-// Data needed for UI to process.
-type Data struct {
+// InterfaceCollective are the values required for UI rendering and updates.
+type InterfaceCollective struct {
 	Group       *group.ValueGrouping
 	StreamCycle *ossh.StreamCycle
 
 	UI *gocui.Gui
 }
 
+// MakeDP initialises a new
 func MakeDP() {
-	DP = &Data{}
-	DP.Group = group.NewValueGrouping()
+	Collective = &InterfaceCollective{}
+	Collective.Group = group.NewValueGrouping()
 }
 
-func (data *Data) StartUI(started chan struct{}) {
+func (data *InterfaceCollective) StartUI(started chan struct{}) {
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
 		panic(err)
@@ -61,7 +62,7 @@ func (data *Data) StartUI(started chan struct{}) {
 	}
 }
 
-func (data *Data) setKeybinds() error {
+func (data *InterfaceCollective) setKeybinds() error {
 	var err error
 
 	// Normal exit of CTRL+C
@@ -92,11 +93,11 @@ func (data *Data) setKeybinds() error {
 	return nil
 }
 
-func (data *Data) Close() {
+func (data *InterfaceCollective) Close() {
 	data.UI.Close()
 }
 
-func (data *Data) Refresh() error {
+func (data *InterfaceCollective) Refresh() error {
 	data.UI.Update(func(g *gocui.Gui) error {
 		vw, err := g.View("log")
 		if err != nil {
@@ -328,7 +329,7 @@ func layout(g *gocui.Gui) error {
 }
 
 func update(g *gocui.Gui, v *gocui.View) error {
-	err := DP.Refresh()
+	err := Collective.Refresh()
 	if err != nil {
 		return err
 	}
