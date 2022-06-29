@@ -51,7 +51,7 @@ func getOSSHConfig(cmd *OmniCommandFlags) *ossh.OmniSSHConfig {
 		log.OmniLog.Warn("Couldn't add agent (SSH_AUTH_SOCK): %s", err)
 	}
 
-	conf.StreamChan = make(chan massh.Result)
+	conf.StreamChan = make(chan *massh.Result)
 
 	return conf
 }

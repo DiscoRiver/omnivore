@@ -24,7 +24,7 @@ var (
 // must be moved to one of the termination maps when the massh.Result.DoneChannel is written to. Hosts must not be moved
 // back into the TodoHosts map once moved.
 type StreamCycle struct {
-	HostsResultChan chan massh.Result
+	HostsResultChan chan *massh.Result
 	NumHostsInit    int
 	Command         string
 
@@ -42,7 +42,7 @@ type StreamCycle struct {
 	mu sync.Mutex
 }
 
-func newStreamCycle(rc chan massh.Result, numHosts int) *StreamCycle {
+func newStreamCycle(rc chan *massh.Result, numHosts int) *StreamCycle {
 	ss := &StreamCycle{}
 	ss.Initialise()
 	go ss.populateResultsMap(rc, numHosts) //hanging point
@@ -66,7 +66,7 @@ func (s *StreamCycle) Initialise() {
 	s.cyclePtrMap[slowHostMapLoc] = s.SlowHosts
 
 	// Initialise HostResultMap
-	s.HostsResultChan = make(chan massh.Result)
+	s.HostsResultChan = make(chan *massh.Result)
 
 	s.initialised = true
 
@@ -87,7 +87,7 @@ func (s *StreamCycle) isInitialised() bool {
 	return s.initialised
 }
 
-func (s *StreamCycle) populateResultsMap(ch chan massh.Result, numHosts int) {
+func (s *StreamCycle) populateResultsMap(ch chan *massh.Result, numHosts int) {
 	for {
 		select {
 		case result := <-ch:

@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	mockResult []massh.Result
+	mockResult []*massh.Result
 
 	sampleResult1 = massh.Result{
 		Host: "host1",
@@ -19,11 +19,11 @@ var (
 )
 
 func TestPopulateResultsMap_IntegrationWorkflow(t *testing.T) {
-	mockResult = append(mockResult, sampleResult1, sampleResult2)
+	mockResult = append(mockResult, &sampleResult1, &sampleResult2)
 	s := StreamCycle{}
 	s.Initialise()
 
-	ch := make(chan massh.Result)
+	ch := make(chan *massh.Result)
 
 	for i := range mockResult {
 		i := i
