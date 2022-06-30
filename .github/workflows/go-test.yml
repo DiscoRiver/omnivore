@@ -4,6 +4,7 @@ on: [push, pull_request]
 
 jobs:
   Unit:
+    environment: AWS EC2 Access
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -58,6 +59,7 @@ jobs:
 
   Integration:
     runs-on: ubuntu-latest
+    environment: AWS EC2 Access
     steps:
     - uses: actions/checkout@v2
 
