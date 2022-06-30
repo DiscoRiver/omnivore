@@ -35,7 +35,7 @@ jobs:
       - name: Install SSH key
         uses: shimataro/ssh-key-action@v2
         with:
-          key: ${{ secrets.PRIVATE_SSH_KEY }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           name: id_rsa # optional
 
       - name: Create known_hosts
@@ -88,7 +88,7 @@ jobs:
     - name: Install SSH key
       uses: shimataro/ssh-key-action@v2
       with:
-        key: ${{ secrets.SSH_KEY }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
         name: id_rsa # optional
         
     - name: Ensure the owner of the key is correct
