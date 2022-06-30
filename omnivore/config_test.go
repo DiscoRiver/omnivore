@@ -13,6 +13,7 @@ var (
 		Hosts:    []string{"localhost"},
 		Username: "runner",
 		Password: "password",
+		Insecure: true,
 	}
 )
 

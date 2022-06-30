@@ -13,6 +13,7 @@ import (
 // funcs.
 func TestStream_WithOutput_IntegrationWorkflow(t *testing.T) {
 	test.InitTestLogger()
+	test.InitAWSHosts(t)
 	conf := OmniSSHConfig{}
 	conf.Config = test.Config
 
@@ -55,6 +56,8 @@ func TestStream_WithOutput_IntegrationWorkflow(t *testing.T) {
 			if massh.NumberOfStreamingHostsCompleted == len(conf.Config.Hosts) {
 				wg.Wait()
 				t.Logf("All hosts finished.\n")
+				t.Logf("Tearing down AWS hosts.")
+				test.StopAWSTestHosts(t)
 				return
 			}
 		}
