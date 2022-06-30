@@ -31,7 +31,7 @@ Running a group can be done with the `-run` flag;
 * `go test -v ./... -run UnitWorkflow`
 * `go test -v ./... -run IntegrationWorkflow`
 
-This is also automated in the Github workflow.
+For integration testing, which performs an SSH "hello world", Omnivore uses cluster of machines within an AWS EC2 group "omnivore". Locally, you can configure your own AWS credentials that has access to such a group and it will run against whichever hosts it finds. As long as you have credentials configured for AWS EC2, permission, and a group with the applicable name, it should run without issue. 
 
 ## Acknowledgements
 
