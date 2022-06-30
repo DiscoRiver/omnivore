@@ -13,10 +13,11 @@ import (
 // funcs.
 func TestStream_WithOutput_IntegrationWorkflow(t *testing.T) {
 	test.InitTestLogger()
+	test.InitAWSHosts(t)
 	conf := OmniSSHConfig{}
 	conf.Config = test.Config
 
-	if err := conf.Config.SetPrivateKeyAuth("~/.ssh/id_rsa", ""); err != nil {
+	if err := conf.Config.SetPrivateKeyAuth("~/.ssh/omnivore_github_action.pem", ""); err != nil {
 		t.Log(err)
 		t.FailNow()
 	}
@@ -55,6 +56,8 @@ func TestStream_WithOutput_IntegrationWorkflow(t *testing.T) {
 			if massh.NumberOfStreamingHostsCompleted == len(conf.Config.Hosts) {
 				wg.Wait()
 				t.Logf("All hosts finished.\n")
+				t.Logf("Tearing down AWS hosts.")
+				test.StopAWSTestHosts(t)
 				return
 			}
 		}

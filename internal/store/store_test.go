@@ -9,5 +9,4 @@ func TestNewStorageSession(t *testing.T) {
 	test.InitTestLogger()
 
 	NewStorageSession()
-
 }
