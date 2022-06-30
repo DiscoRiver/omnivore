@@ -38,10 +38,7 @@ jobs:
         with:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           name: id_rsa # optional
-
-      - name: Create known_hosts
-        run: >
-          touch ~/.ssh/known_hosts
+          known_hosts: localhost
 
       - name: Ensure the owner of the key is correct
         run: |
@@ -92,7 +89,8 @@ jobs:
       with:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         name: id_rsa # optional
-        
+        known_hosts: localhost
+
     - name: Ensure the owner of the key is correct
       run: |
         chmod 700 ~/.ssh
