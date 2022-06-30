@@ -17,7 +17,7 @@ func TestStream_WithOutput_IntegrationWorkflow(t *testing.T) {
 	conf := OmniSSHConfig{}
 	conf.Config = test.Config
 
-	if err := conf.Config.SetPrivateKeyAuth("~/.ssh/omnivore_github_action.pem", ""); err != nil {
+	if err := conf.Config.SetPrivateKeyAuth("~/.ssh/id_rsa", ""); err != nil {
 		t.Log(err)
 		t.FailNow()
 	}
