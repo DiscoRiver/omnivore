@@ -105,7 +105,7 @@ concurrency, but there are mutexes in place anyway.
 For now, I will test the grouping package here only when the command as completed. Real-time grouping
 is more tricky as it requires us to keep creating a new hash for the output if there are multiple lines.
 */
-func readStreamWithTimeout(res massh.Result, t time.Duration, grp *group.ValueGrouping, wg *sync.WaitGroup) {
+func readStreamWithTimeout(res *massh.Result, t time.Duration, grp *group.ValueGrouping, wg *sync.WaitGroup) {
 	timeout := time.Second * t
 	timer := time.NewTimer(timeout)
 	defer func() {

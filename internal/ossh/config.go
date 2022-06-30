@@ -8,14 +8,14 @@ import (
 
 type OmniSSHConfig struct {
 	Config     *massh.Config
-	StreamChan chan massh.Result
+	StreamChan chan *massh.Result
 }
 
 // NewConfig initialises a new OmniSSHConfig
 func NewConfig() *OmniSSHConfig {
 	c := &OmniSSHConfig{
 		Config:     massh.NewConfig(),
-		StreamChan: make(chan massh.Result),
+		StreamChan: make(chan *massh.Result),
 	}
 	return c
 }

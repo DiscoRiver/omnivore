@@ -3,14 +3,13 @@ module github.com/discoriver/omnivore
 go 1.18
 
 require (
-	github.com/discoriver/massh v1.14.0
+	github.com/discoriver/massh v1.14.1
 	github.com/fatih/color v1.13.0
 	github.com/jroimartin/gocui v0.5.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/viper v1.10.1
 	golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd
-	golang.org/x/exp v0.0.0-20220325121720-054d8573a5d8
 )
 
 require (

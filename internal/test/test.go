@@ -38,7 +38,7 @@ func InitTestLogger() {
 	log.OmniLog.Init()
 }
 
-func ReadStreamWithTimeout(res massh.Result, timeout time.Duration, wg *sync.WaitGroup, t *testing.T) {
+func ReadStreamWithTimeout(res *massh.Result, timeout time.Duration, wg *sync.WaitGroup, t *testing.T) {
 	timer := time.NewTimer(timeout)
 	defer func() {
 		timer.Stop()

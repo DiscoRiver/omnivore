@@ -21,7 +21,7 @@ func TestStream_WithOutput_IntegrationWorkflow(t *testing.T) {
 		t.FailNow()
 	}
 
-	conf.StreamChan = make(chan massh.Result)
+	conf.StreamChan = make(chan *massh.Result)
 
 	// This should be the last responsibility from the massh package. Handling the Result channel is up to the user.
 	s, err := conf.Stream()
