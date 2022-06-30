@@ -76,6 +76,7 @@ func GetAWSTestHosts(t *testing.T) []string {
 		t.Logf("Failed to load default AWS config: %s", err)
 		t.FailNow()
 	}
+	cfg.Region = "us-east-1"
 
 	client := ec2.GetClient(cfg)
 
