@@ -12,10 +12,12 @@ import (
 
 var (
 	Collective *InterfaceCollective
-	magenta    = color.New(color.FgMagenta).SprintFunc()
-	yellow     = color.New(color.FgYellow).SprintFunc()
-	green      = color.New(color.FgGreen).SprintFunc()
-	red        = color.New(color.FgRed).SprintFunc()
+
+	magenta = color.New(color.FgMagenta).SprintFunc()
+	yellow  = color.New(color.FgYellow).SprintFunc()
+	green   = color.New(color.FgGreen).SprintFunc()
+	red     = color.New(color.FgRed).SprintFunc()
+
 	logShowing = false
 
 	// Keybinds
@@ -58,7 +60,7 @@ func (data *InterfaceCollective) StartUI(started chan struct{}) {
 	started <- struct{}{}
 
 	if err := data.UI.MainLoop(); err != nil && err != gocui.ErrQuit {
-		log.OmniLog.Fatal("Error")
+		log.OmniLog.Fatal("%s", err)
 	}
 }
 

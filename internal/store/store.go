@@ -53,6 +53,13 @@ func NewStorageSession() {
 	Session.InitSessionDirectory()
 }
 
+// Read reads the given file from a storage session.
+func (s *StorageSession) Read(name string) ([]byte, error) {
+	filePath := s.SessionDir + string(os.PathSeparator) + name
+
+	return os.ReadFile(filePath)
+}
+
 // InitBaseDir ensures the directory ~/.omnivore/ exists, creating it if necessary.
 func (s *StorageSession) InitBaseDir() {
 	if _, err := os.Stat(s.BaseDir); err != nil {

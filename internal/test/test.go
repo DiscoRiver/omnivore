@@ -35,7 +35,11 @@ var (
 		WorkerPool: 10,
 	}
 
-	AWSInstances           []types.Instance
+	AWSInstances []types.Instance
+	// Filter for omnivore AWS EC2 group.
+	AWSInstanceFilters = map[string][]string{
+		"network-interface.group-name": {"omnivore"},
+	}
 	AWSWaitForStartSeconds = 20
 )
 
@@ -78,11 +82,7 @@ func GetAWSTestHosts(t *testing.T) []string {
 
 	client := ec2.GetClient(cfg)
 
-	f := map[string][]string{}
-	// Filter for omnivore EC2 group.
-	f["network-interface.group-name"] = []string{"omnivore"}
-
-	instancesDescription, err := ec2.GetInstancesWithFilters(context.TODO(), client, filters.GenerateFilterSlice(f))
+	instancesDescription, err := ec2.GetInstancesWithFilters(context.TODO(), client, filters.GenerateFilterSlice(AWSInstanceFilters))
 	if err != nil {
 		t.Logf("Couldn't get AWS instances: %s", err)
 		t.FailNow()
