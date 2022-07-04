@@ -30,6 +30,10 @@ func (c *OmniSSHConfig) Stream() (*StreamCycle, error) {
 
 	ss := newStreamCycle(c.StreamChan, len(c.Config.Hosts))
 
+	for k, _ := range c.Config.Hosts {
+		ss.AllHosts = append(ss.AllHosts, k)
+	}
+
 	log.OmniLog.Info("Returning StreamCycle")
 	return ss, nil
 }

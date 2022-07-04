@@ -56,7 +56,6 @@ func NewStorageSession() {
 // Read reads the given file from a storage session.
 func (s *StorageSession) Read(name string) ([]byte, error) {
 	filePath := s.SessionDir + string(os.PathSeparator) + name
-
 	return os.ReadFile(filePath)
 }
 

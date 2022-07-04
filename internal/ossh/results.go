@@ -35,6 +35,7 @@ type StreamCycle struct {
 	CompletedHosts map[string]struct{}
 	FailedHosts    map[string]struct{}
 	SlowHosts      map[string]struct{}
+	AllHosts       []string
 
 	initialised bool
 	cyclePtrMap map[string]map[string]struct{}
