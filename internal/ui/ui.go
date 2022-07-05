@@ -190,7 +190,7 @@ func (data *InterfaceCollective) Refresh() error {
 
 			content, _ := store.Session.Read(data.StreamCycle.AllHosts[i])
 
-			_, err = fmt.Fprintf(vw, "%s", content)
+			_, err = fmt.Fprintf(vw, magenta("%s"), content)
 			if err != nil {
 				panic(err)
 			}
