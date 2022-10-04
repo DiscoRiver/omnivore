@@ -17,7 +17,7 @@ var (
 
 	defaultDirPermissions = os.FileMode(0775)
 
-	// Session is initalised with NewStorageSession, used for file operations.
+	// Session is initialised with NewStorageSession, used for file operations.
 	Session *StorageSession
 
 	// Trouble writing host output?
