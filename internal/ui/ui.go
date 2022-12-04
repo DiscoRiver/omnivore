@@ -77,6 +77,7 @@ func (data *InterfaceCollective) setKeybinds() error {
 	if err = data.UI.SetKeybinding("", exitStandard, gocui.ModNone, quit); err != nil {
 		return err
 	}
+
 	err = data.UI.SetKeybinding("", gocui.KeyArrowLeft, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		// This is to account for no updates once hosts have returned, since update doesn't get called from omnivore.
 		data.Refresh()
@@ -105,15 +106,13 @@ func (data *InterfaceCollective) setKeybinds() error {
 
 	// Toggle log window to front
 	err = data.UI.SetKeybinding("", gocui.KeyCtrlL, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		if logShowing == false {
+		if !logShowing {
 			_, err := g.SetViewOnTop("log")
 			logShowing = true
-
 			return err
 		} else {
 			_, err := g.SetViewOnBottom("log")
 			logShowing = false
-
 			return err
 		}
 	})
