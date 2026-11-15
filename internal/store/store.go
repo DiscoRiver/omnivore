@@ -1,120 +1,65 @@
-// Package store provides data storage for omnivore output.
+// Package store keeps the history of omnivore runs on disk.
+//
+// Each run gets its own directory, ~/.omnivore/history/<unix-nanoseconds>/, holding one file per
+// host with its output, and the run's log.
 package store
 
 import (
 	"fmt"
-	ovlog "github.com/discoriver/omnivore/internal/log"
-	"github.com/discoriver/omnivore/internal/path"
-	"github.com/discoriver/omnivore/pkg/group"
-	"log"
 	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 )
 
-var (
-	base    = ".omnivore"
-	history = "history"
+// LogFile is the name of the log file in a run's directory.
+const LogFile = "log.txt"
 
-	defaultDirPermissions = os.FileMode(0775)
-
-	// Session is initialised with NewStorageSession, used for file operations.
-	Session *StorageSession
-
-	// Trouble writing host output?
-	hostFileWriteFailure bool
-)
-
-// StorageSession holds directory information about the current application run state.
-type StorageSession struct {
-	Timestamp  string
-	UserHome   string
-	BaseDir    string
-	HistoryDir string
-	SessionDir string
+// Store is the history directory of one run.
+type Store struct {
+	// Dir is the run's directory.
+	Dir string
 }
 
-func NewStorageSession() {
-	Session = &StorageSession{}
-
-	var err error
-	if Session.UserHome, err = path.GetUserHome(); err != nil {
-		log.Fatalf("Unable to get user home: %s\n", err.Error())
+// DefaultBase returns ~/.omnivore.
+func DefaultBase() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
 	}
-
-	Session.BaseDir = Session.UserHome + string(os.PathSeparator) + base
-	Session.HistoryDir = Session.BaseDir + string(os.PathSeparator) + history
-
-	Session.Timestamp = fmt.Sprintf("%d", time.Now().UnixNano())
-	Session.SessionDir = Session.HistoryDir + string(os.PathSeparator) + Session.Timestamp
-
-	// Just initialise the directories here
-	Session.InitBaseDir()
-	Session.InitHistoryDir()
-	Session.InitSessionDirectory()
+	return filepath.Join(home, ".omnivore"), nil
 }
 
-// Read reads the given file from a storage session.
-func (s *StorageSession) Read(name string) ([]byte, error) {
-	filePath := s.SessionDir + string(os.PathSeparator) + name
-	return os.ReadFile(filePath)
-}
-
-// InitBaseDir ensures the directory ~/.omnivore/ exists, creating it if necessary.
-func (s *StorageSession) InitBaseDir() {
-	if _, err := os.Stat(s.BaseDir); err != nil {
-		if os.IsNotExist(err) {
-			err = os.MkdirAll(s.BaseDir, defaultDirPermissions)
-			if err != nil {
-				log.Fatalf("Couldn't create base directory: %s\n", err.Error())
-			}
-			return
-		}
+// New creates a directory for a new run under base/history.
+func New(base string) (*Store, error) {
+	dir := filepath.Join(base, "history", strconv.FormatInt(time.Now().UnixNano(), 10))
+	// Output can be sensitive, so only the user may read it.
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, fmt.Errorf("create history directory: %w", err)
 	}
+	return &Store{Dir: dir}, nil
 }
 
-// InitHistoryDir ensures the directory ~/.omnivore/history exists, creating it if necessary.
-func (s *StorageSession) InitHistoryDir() {
-	if _, err := os.Stat(s.HistoryDir); err != nil {
-		if os.IsNotExist(err) {
-			err = os.Mkdir(s.HistoryDir, defaultDirPermissions)
-			if err != nil {
-				log.Fatalf("Couldn't create history directory: %s\n", err.Error())
-			}
-			return
-		} else {
-			log.Fatalf("Couldn't create history directory: %s\n", err.Error())
-		}
-	}
+// OpenLog opens the run's log file for appending.
+func (s *Store) OpenLog() (*os.File, error) {
+	return os.OpenFile(filepath.Join(s.Dir, LogFile), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 }
 
-// InitSessionDirectory creates a directory to hold session output in ~/.omnivore/history using the unix timestamp
-// set by func setSessionTimestamp
-func (s *StorageSession) InitSessionDirectory() {
-	// Parents should exist or program should've terminated by here.
-	if err := os.Mkdir(s.SessionDir, defaultDirPermissions); err != nil {
-		log.Fatalf("Couldn't create session directory: %s\n", err.Error())
-	}
+// WriteHost saves host's output.
+func (s *Store) WriteHost(host string, output []byte) error {
+	return os.WriteFile(s.hostPath(host), output, 0o600)
 }
 
-// InitHostDir creates host-named directory within ~/.omnivore/history.
-func (s *StorageSession) InitHostDir(name string) {
-	// Parents should exist or program should've terminated by here.
-	if err := os.Mkdir(s.SessionDir+string(os.PathSeparator)+name, defaultDirPermissions); err != nil {
-		log.Fatalf("Couldn't create host directory: %s\n", err.Error())
-	}
+// ReadHost returns the output saved for host.
+func (s *Store) ReadHost(host string) ([]byte, error) {
+	return os.ReadFile(s.hostPath(host))
 }
 
-// WriteOutputFileForHost writes the content of an identifying pair to a file, for future processing out of memory. The identifying pair's key should always be the hostname.
-func (s *StorageSession) WriteOutputFileForHost(idp *group.IdentifyingPair) {
-	// Key should always be the hostname in Omnivore
-	filePath := s.SessionDir + string(os.PathSeparator) + idp.Key
-
-	// Don't log fatal here, as the application can still be allowed to function in-memory.
-	if err := os.WriteFile(filePath, idp.Value, defaultDirPermissions); err != nil {
-		ovlog.OmniLog.Warn("Couldn't write host output file: %s", err.Error())
-
-		// TODO: Have application continue to run in-memory if writing these files fails.
-		hostFileWriteFailure = true
+func (s *Store) hostPath(host string) string {
+	name := strings.NewReplacer("/", "_", string(os.PathSeparator), "_").Replace(host)
+	if name == "" || name == "." || name == ".." || name == LogFile {
+		name = "_" + name
 	}
-	ovlog.OmniLog.Info("Written host output file for %s", idp.Key)
+	return filepath.Join(s.Dir, name)
 }

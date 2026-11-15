@@ -1,118 +1,24 @@
 name: Go
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
 
 jobs:
-  Unit:
-    environment: AWS EC2 Access
+  test:
     runs-on: ubuntu-latest
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v2
+      - uses: actions/setup-go@v5
         with:
-          go-version: 1.17
+          go-version-file: go.mod
 
-      - name: Ensure ssh is installed
-        run: sudo apt update; sudo apt -y install openssh-server
+      - name: Vet
+        run: go vet ./...
 
-      - name: Check config
-        run: |
-          cat > sshd_config <<EOF
-            SyslogFacility AUTHPRIV
-            PermitRootLogin yes
-            AuthorizedKeysFile	.ssh/authorized_keys
-            ChallengeResponseAuthentication no
-            PubkeyAuthentication yes
-          EOF
-          cat > ssh_config <<EOF
-            StrictHostKeyChecking no
-          EOF
-          sudo mv sshd_config /etc/ssh/sshd_config
-          sudo mv ssh_config /etc/ssh/ssh_config
-          sudo systemctl restart ssh
-
-      - name: Install SSH key
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          name: id_rsa # optional
-          known_hosts: localhost
-
-      - name: Ensure the owner of the key is correct
-        run: |
-          chmod 700 ~/.ssh
-          sudo chmod -c 0755 ~/
-          ls -la ~/.ssh
-
-      - name: Go Build
-        run: go build -v ./...
-
-      - name: Go Test
-        run: |
-          eval $(ssh-agent)
-          go test -v ./... -run _UnitWorkflow
-
-  Integration:
-    runs-on: ubuntu-latest
-    environment: AWS EC2 Access
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Set up Go
-      uses: actions/setup-go@v2
-      with:
-        go-version: 1.17
-        
-    - name: Ensure ssh is installed
-      run: sudo apt update; sudo apt -y install openssh-server
-      
-    - name: Check config
-      run: |
-        cat > sshd_config <<EOF
-          SyslogFacility AUTHPRIV
-          PermitRootLogin yes
-          AuthorizedKeysFile	.ssh/authorized_keys
-          ChallengeResponseAuthentication no
-          PubkeyAuthentication yes
-        EOF
-        cat > ssh_config <<EOF
-          StrictHostKeyChecking no
-        EOF
-        sudo mv sshd_config /etc/ssh/sshd_config
-        sudo mv ssh_config /etc/ssh/ssh_config
-        sudo systemctl restart ssh
-
-    - name: Install SSH key
-      uses: shimataro/ssh-key-action@v2
-      with:
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        name: id_rsa # optional
-        known_hosts: localhost
-
-    - name: Ensure the owner of the key is correct
-      run: |
-        chmod 700 ~/.ssh
-        sudo chmod -c 0755 ~/
-        ls -la ~/.ssh
-        
-    - name: Go Build
-      run: go build -v ./...
-
-    - name: Go Test
-      run: |
-        eval $(ssh-agent)
-        go test -v ./... -run _IntegrationWorkflow
-      
-    - name: Check auth.log log on failure
-      if: ${{ failure() }}
-      run: cat /var/log/auth.log
+      - name: Test
+        run: go test -race ./...

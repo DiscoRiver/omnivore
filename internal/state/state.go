@@ -1,0 +1,212 @@
+// Package state holds the progress and output of an omnivore run, shared between the code that
+// runs commands and the code that displays them.
+package state
+
+import (
+	"errors"
+	"fmt"
+	"slices"
+	"strings"
+	"sync"
+
+	"github.com/discoriver/omnivore/internal/group"
+	"golang.org/x/crypto/ssh"
+)
+
+// Status is where a host is in its lifecycle.
+type Status int
+
+const (
+	// Pending hosts have not finished yet.
+	Pending Status = iota
+	// Completed hosts ran the command, which exited successfully.
+	Completed
+	// Failed hosts could not run the command, or it exited with an error.
+	Failed
+)
+
+func (s Status) String() string {
+	switch s {
+	case Pending:
+		return "pending"
+	case Completed:
+		return "completed"
+	case Failed:
+		return "failed"
+	default:
+		return fmt.Sprintf("Status(%d)", int(s))
+	}
+}
+
+// Host is the state of one host.
+type Host struct {
+	Name   string
+	Status Status
+	// Slow is set when the host has been quiet for longer than the command timeout.
+	Slow bool
+	// Output is everything the host has written to stdout and stderr so far.
+	Output []byte
+	// Err is why the host failed.
+	Err error
+}
+
+// Result is the host's output followed by a description of its error, if any. This is what the
+// host is grouped by.
+func (h Host) Result() []byte {
+	if h.Err == nil {
+		return h.Output
+	}
+	out := slices.Clip(h.Output)
+	if len(out) > 0 && out[len(out)-1] != '\n' {
+		out = append(out, '\n')
+	}
+	return append(out, describe(h.Err)+"\n"...)
+}
+
+func describe(err error) string {
+	var exit *ssh.ExitError
+	if errors.As(err, &exit) {
+		return fmt.Sprintf("[exit status %d]", exit.ExitStatus())
+	}
+	return fmt.Sprintf("[error: %v]", err)
+}
+
+// State is the shared, concurrency-safe state of a run.
+type State struct {
+	mu      sync.Mutex
+	command string
+	names   []string
+	hosts   map[string]*Host
+	groups  group.Grouping
+	done    bool
+
+	changed chan struct{}
+}
+
+// New returns the state for running command on hosts, which all start Pending.
+func New(command string, hosts []string) *State {
+	s := &State{
+		command: command,
+		hosts:   make(map[string]*Host, len(hosts)),
+		changed: make(chan struct{}, 1),
+	}
+	for _, h := range hosts {
+		if _, ok := s.hosts[h]; ok {
+			continue
+		}
+		s.hosts[h] = &Host{Name: h}
+		s.names = append(s.names, h)
+	}
+	slices.Sort(s.names)
+	return s
+}
+
+// Changed returns a channel that receives a value after the state changes. Changes made while
+// nobody is receiving are coalesced into one notification.
+func (s *State) Changed() <-chan struct{} { return s.changed }
+
+// update runs f with the lock held, and then notifies listeners.
+func (s *State) update(f func()) {
+	s.mu.Lock()
+	f()
+	s.mu.Unlock()
+	select {
+	case s.changed <- struct{}{}:
+	default:
+	}
+}
+
+// AppendOutput adds data to host's output.
+func (s *State) AppendOutput(host string, data []byte) {
+	s.update(func() {
+		if h, ok := s.hosts[host]; ok {
+			h.Output = append(h.Output, data...)
+		}
+	})
+}
+
+// MarkSlow flags host as slow.
+func (s *State) MarkSlow(host string) {
+	s.update(func() {
+		if h, ok := s.hosts[host]; ok {
+			h.Slow = true
+		}
+	})
+}
+
+// Finish marks host as Completed, or Failed if err is not nil, adds it to the output groups, and
+// returns its Result. It does nothing and returns nil if host has already finished.
+func (s *State) Finish(host string, err error) []byte {
+	var result []byte
+	s.update(func() {
+		h, ok := s.hosts[host]
+		if !ok || h.Status != Pending {
+			return
+		}
+		h.Err = err
+		h.Status = Completed
+		if err != nil {
+			h.Status = Failed
+		}
+		result = h.Result()
+		s.groups.Add(host, result)
+	})
+	return result
+}
+
+// Close records that the run is over.
+func (s *State) Close() {
+	s.update(func() { s.done = true })
+}
+
+// Snapshot is a consistent copy of a State at one moment.
+type Snapshot struct {
+	Command string
+	// Hosts are sorted by name.
+	Hosts []Host
+	// Groups are ordered as by group.Grouping.Groups.
+	Groups []group.Group
+	// Done is true once the run is over.
+	Done bool
+}
+
+// Snapshot returns a copy of the current state. Its byte slices must not be modified.
+func (s *State) Snapshot() Snapshot {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	snap := Snapshot{
+		Command: s.command,
+		Hosts:   make([]Host, len(s.names)),
+		Groups:  s.groups.Groups(),
+		Done:    s.done,
+	}
+	for i, name := range s.names {
+		h := *s.hosts[name]
+		// Output is only ever appended to, so sharing what has been written so far is safe.
+		h.Output = slices.Clip(h.Output)
+		snap.Hosts[i] = h
+	}
+	return snap
+}
+
+// Names returns the names of the hosts for which keep returns true, in order.
+func (s Snapshot) Names(keep func(Host) bool) []string {
+	var names []string
+	for _, h := range s.Hosts {
+		if keep(h) {
+			names = append(names, h.Name)
+		}
+	}
+	return names
+}
+
+// Host returns the named host.
+func (s Snapshot) Host(name string) (Host, bool) {
+	i, ok := slices.BinarySearchFunc(s.Hosts, name, func(h Host, n string) int {
+		return strings.Compare(h.Name, n)
+	})
+	if !ok {
+		return Host{}, false
+	}
+	return s.Hosts[i], true
+}
