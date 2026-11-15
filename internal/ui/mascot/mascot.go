@@ -37,7 +37,13 @@ const (
 )
 
 func (p Protocol) String() string {
-	return [...]string{"none", "kitty", "iterm2"}[p]
+	switch p {
+	case Kitty:
+		return "kitty"
+	case ITerm2:
+		return "iterm2"
+	}
+	return "none"
 }
 
 // Env is the environment variable that controls the mascot: "off", "kitty", "iterm2", or "auto"
@@ -94,9 +100,6 @@ func New(proto Protocol, cols, rows int) *Mascot {
 	}
 	return m
 }
-
-// Size returns the cells the mascot covers.
-func (m *Mascot) Size() (cols, rows int) { return m.cols, m.rows }
 
 // kittyID is the image ID used for a frame. They are high, to stay clear of other programs.
 func kittyID(name string) int {

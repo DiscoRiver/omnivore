@@ -37,9 +37,8 @@ func NewCommand() *cobra.Command {
 		Short: "Omnivore devours all SSH output, and provides intelligent grouping.",
 		Long: "Omnivore runs a command on many hosts over SSH and groups hosts with identical output, " +
 			"so that anomalies and unexpected output stand out.",
-		Args:          cobra.NoArgs,
-		SilenceUsage:  true,
-		SilenceErrors: false,
+		Args:         cobra.NoArgs,
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cfg, err := config.Load(cmd.Flags())
 			if err != nil {

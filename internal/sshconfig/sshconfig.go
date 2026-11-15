@@ -3,6 +3,7 @@
 package sshconfig
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -99,7 +100,7 @@ func (c *Config) Lookup(alias string) (Settings, error) {
 		Port:     c.get(alias, "Port"),
 		User:     c.get(alias, "User"),
 	}
-	host := cmpOr(s.HostName, alias)
+	host := cmp.Or(s.HostName, alias)
 	for _, f := range c.getAll(alias, "IdentityFile") {
 		s.IdentityFiles = append(s.IdentityFiles, expandTokens(f, alias, host, s.User))
 	}
@@ -140,14 +141,12 @@ func (c *Config) lookupJump(spec string) (Jump, error) {
 	}
 
 	// The jump host's own config.
-	if c.get(alias, "ProxyJump") != "" {
-		if pj := c.get(alias, "ProxyJump"); !strings.EqualFold(pj, "none") {
-			return Jump{}, fmt.Errorf("ProxyJump with several hops is not supported (jump host %s)", alias)
-		}
+	if pj := c.get(alias, "ProxyJump"); pj != "" && !strings.EqualFold(pj, "none") {
+		return Jump{}, fmt.Errorf("ProxyJump with several hops is not supported (jump host %s)", alias)
 	}
-	j.Host = cmpOr(c.get(alias, "HostName"), alias)
-	j.Port = cmpOr(j.Port, c.get(alias, "Port"))
-	j.User = cmpOr(j.User, c.get(alias, "User"))
+	j.Host = cmp.Or(c.get(alias, "HostName"), alias)
+	j.Port = cmp.Or(j.Port, c.get(alias, "Port"))
+	j.User = cmp.Or(j.User, c.get(alias, "User"))
 	for _, f := range c.getAll(alias, "IdentityFile") {
 		j.IdentityFiles = append(j.IdentityFiles, expandTokens(f, alias, j.Host, j.User))
 	}
@@ -165,17 +164,10 @@ func expandTokens(s, alias, host, remoteUser string) string {
 	if u, err := user.Current(); err == nil {
 		local = u.Username
 	}
-	r := strings.NewReplacer("%%", "%", "%h", host, "%n", alias, "%r", cmpOr(remoteUser, local), "%u", local, "%d", home)
+	r := strings.NewReplacer("%%", "%", "%h", host, "%n", alias, "%r", cmp.Or(remoteUser, local), "%u", local, "%d", home)
 	s = r.Replace(s)
 	if rest, ok := strings.CutPrefix(s, "~/"); ok && home != "" {
 		s = filepath.Join(home, rest)
 	}
 	return s
-}
-
-func cmpOr(a, b string) string {
-	if a != "" {
-		return a
-	}
-	return b
 }

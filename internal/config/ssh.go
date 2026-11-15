@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/user"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -163,7 +164,7 @@ func (a *auth) clientConfig(user string, identityFiles ...string) *ssh.ClientCon
 // once.
 func (a *auth) methods(extra []ssh.Signer) []ssh.AuthMethod {
 	var methods []ssh.AuthMethod
-	files := append(extra[:len(extra):len(extra)], a.base...)
+	files := slices.Concat(extra, a.base)
 	if len(files) > 0 || a.agent != nil {
 		methods = append(methods, ssh.PublicKeysCallback(func() ([]ssh.Signer, error) {
 			if a.agent == nil {

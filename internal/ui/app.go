@@ -79,11 +79,15 @@ func mascotTick() tea.Cmd {
 	return tea.Tick(mascot.Tick, func(t time.Time) tea.Msg { return mascotTickMsg(t) })
 }
 
-// Mascot size in cells, and the narrowest terminal that shows it.
+// Mascot layout and timing.
 const (
-	mascotCols         = 8
-	mascotRows         = headerHeight
-	minWidthForMascot  = 60
+	// mascotCols and mascotRows are the cells the mascot covers, to the left of the header.
+	mascotCols = 8
+	mascotRows = headerHeight
+	// minWidthForMascot is the narrowest terminal that shows it.
+	minWidthForMascot = 60
+	// mascotRefreshTicks is how often an unchanged frame is redrawn anyway, in case a redraw
+	// of the text erased it.
 	mascotRefreshTicks = 4
 	// mascotRedrawDelay gives the renderer time to paint a new screen before the image goes on it.
 	mascotRedrawDelay = 60 * time.Millisecond
@@ -249,7 +253,7 @@ func (m *model) updateContent() {
 		m.showSelected()
 	case diffScreen:
 		if len(m.snap.Groups) > 0 {
-			m.main.SetContent(m.theme.renderDiff(m.snap.Groups[0], m.snap.Groups[m.selected]))
+			m.main.SetContent(m.theme.renderDiff(m.snap.Groups, m.selected))
 		}
 	case hostScreen:
 		h, _ := m.snap.Host(m.host)
@@ -335,7 +339,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.layout()
 		// A resize redraws the whole screen, which erases the image: draw it again once the new
 		// screen has been painted (this is also how it first appears).
-		m.mascotFrame = ""
 		return m, tea.Tick(mascotRedrawDelay, func(t time.Time) tea.Msg { return mascotRedrawMsg(t) })
 
 	case mascotRedrawMsg:
@@ -343,6 +346,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.animateMascot(time.Time(msg))
 
 	case mascotTickMsg:
+		m.mascotTicks++
 		return m, tea.Batch(m.animateMascot(time.Time(msg)), mascotTick())
 
 	case tea.BackgroundColorMsg:
@@ -417,16 +421,16 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.openHost(m.matches[m.matchSel])
 			}
 			return m, nil
-		case msg.String() == "up":
+		case key.Matches(msg, k.MatchUp):
 			m.matchSel = max(m.matchSel-1, 0)
 			return m, nil
-		case msg.String() == "down":
+		case key.Matches(msg, k.MatchDown):
 			m.matchSel = min(m.matchSel+1, max(len(m.matches)-1, 0))
 			return m, nil
 		}
 		var cmd tea.Cmd
 		m.search, cmd = m.search.Update(msg)
-		m.matches = matchHosts(m.snap.Names(func(state.Host) bool { return true }), m.search.Value())
+		m.matches = matchHosts(m.snap.Names(nil), m.search.Value())
 		m.matchSel = 0
 		return m, cmd
 
@@ -455,7 +459,7 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, k.Search):
 		m.overlay = searchOverlay
 		m.search.Reset()
-		m.matches = matchHosts(m.snap.Names(func(state.Host) bool { return true }), "")
+		m.matches = matchHosts(m.snap.Names(nil), "")
 		m.matchSel = 0
 		return m, m.search.Focus()
 	case key.Matches(msg, k.Log):
@@ -557,7 +561,7 @@ func (m *model) copyHosts() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	m.status = fmt.Sprintf("copied %d hosts", len(g.Hosts))
+	m.status = "copied " + plural(len(g.Hosts), "host")
 	return tea.SetClipboard(strings.Join(g.Hosts, "\n"))
 }
 
@@ -589,7 +593,6 @@ func (m *model) animateMascot(now time.Time) tea.Cmd {
 	if !m.showMascot() {
 		return nil
 	}
-	m.mascotTicks++
 	c := countHosts(m.snap)
 	if c.failed > m.lastFailed && !m.snap.Done {
 		m.roarUntil = now.Add(mascot.RoarFor)
@@ -624,12 +627,14 @@ func (m *model) View() tea.View {
 	case groupsScreen:
 		title = fmt.Sprintf("Groups (%d)", len(m.snap.Groups))
 	case diffScreen:
-		g, first := m.snap.Groups[m.selected], m.snap.Groups[0]
-		against := "majority"
-		if len(first.Hosts) == len(g.Hosts) {
-			against = "largest group"
+		if g, ok := m.selectedGroup(); ok {
+			first := m.snap.Groups[0]
+			against := "majority"
+			if len(first.Hosts) == len(g.Hosts) {
+				against = "largest group"
+			}
+			title = fmt.Sprintf("Diff: %s vs %s (%s)", joinHosts(g.Hosts, 30), against, plural(len(first.Hosts), "host"))
 		}
-		title = fmt.Sprintf("Diff: %s vs %s (%d hosts)", joinHosts(g.Hosts, 30), against, len(first.Hosts))
 	case hostScreen:
 		h, _ := m.snap.Host(m.host)
 		title = t.hostTitle(h)
@@ -658,16 +663,14 @@ func (m *model) View() tea.View {
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
 	v.WindowTitle = "omnivore"
-	c := countHosts(m.snap)
-	if c.total > 0 {
-		state := tea.ProgressBarDefault
-		if c.failed > 0 {
-			state = tea.ProgressBarWarning
-		}
-		v.ProgressBar = tea.NewProgressBar(state, c.done*100/c.total)
-		if m.snap.Done {
-			v.ProgressBar = tea.NewProgressBar(tea.ProgressBarNone, 0)
-		}
+	// The terminal's own progress indicator (tab or taskbar), where supported.
+	switch c := countHosts(m.snap); {
+	case m.snap.Done || c.total == 0:
+		v.ProgressBar = tea.NewProgressBar(tea.ProgressBarNone, 0)
+	case c.failed > 0:
+		v.ProgressBar = tea.NewProgressBar(tea.ProgressBarWarning, c.done*100/c.total)
+	default:
+		v.ProgressBar = tea.NewProgressBar(tea.ProgressBarDefault, c.done*100/c.total)
 	}
 	return v
 }
@@ -706,25 +709,21 @@ func (m *model) renderOverlay() string {
 	case quitOverlay:
 		c := countHosts(m.snap)
 		n := c.running + c.slow
-		hosts := "hosts are"
+		verb := "are"
 		if n == 1 {
-			hosts = "host is"
+			verb = "is"
 		}
-		text := fmt.Sprintf("%d %s still running.\nQuit and stop them?\n\n%s  %s",
-			n, hosts, t.fail.Render("y  quit"), t.dim.Render("n  stay"))
+		text := fmt.Sprintf("%s %s still running.\nQuit and stop them?\n\n%s  %s",
+			plural(n, "host"), verb, t.fail.Render("y  quit"), t.dim.Render("n  stay"))
 		return t.box("Quit?", "", text, 34, 7, true)
 	}
 	return ""
 }
 
-func (t theme) statusLabel(h state.Host) string {
-	switch {
-	case h.Status == state.Completed:
-		return t.ok.Render("✓ completed")
-	case h.Status == state.Failed:
-		return t.fail.Render("✗ failed")
-	case h.Slow:
-		return t.slow.Render("◷ slow")
+// plural returns "1 host", "2 hosts" and so on.
+func plural(n int, noun string) string {
+	if n == 1 {
+		return fmt.Sprintf("%d %s", n, noun)
 	}
-	return t.running.Render("● running")
+	return fmt.Sprintf("%d %ss", n, noun)
 }

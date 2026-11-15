@@ -33,9 +33,9 @@ type Buffer struct {
 	total int
 }
 
-// NewBuffer returns a Buffer that keeps up to max lines.
-func NewBuffer(max int) *Buffer {
-	return &Buffer{max: max}
+// NewBuffer returns a Buffer that keeps up to n lines.
+func NewBuffer(n int) *Buffer {
+	return &Buffer{max: n}
 }
 
 // Write adds each line in p. A trailing newline is optional.

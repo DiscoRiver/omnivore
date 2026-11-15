@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/aymanbagabas/go-udiff"
 	"github.com/charmbracelet/x/ansi"
@@ -71,7 +72,7 @@ func (t theme) progressBar(done, total, width int) string {
 	if width <= 0 {
 		return ""
 	}
-	filled := width
+	filled := 0
 	if total > 0 {
 		filled = done * width / total
 	}
@@ -81,9 +82,9 @@ func (t theme) progressBar(done, total, width int) string {
 // renderHeader draws the status box at the top of the screen.
 func (t theme) renderHeader(snap state.Snapshot, width int, spin string, elapsed time.Duration) string {
 	c := countHosts(snap)
-	state := t.running.Render(spin + " running")
+	status := t.running.Render(spin + " running")
 	if snap.Done {
-		state = t.ok.Render("✓ finished")
+		status = t.ok.Render("✓ finished")
 	}
 	stats := fmt.Sprintf("%d/%d   %s  %s  %s   %s",
 		c.done, c.total,
@@ -91,16 +92,16 @@ func (t theme) renderHeader(snap state.Snapshot, width int, spin string, elapsed
 		t.fail.Render(fmt.Sprintf("✗ %d", c.failed)),
 		t.slow.Render(fmt.Sprintf("◷ %d slow", c.slow)),
 		t.dim.Render(formatElapsed(elapsed)))
-	barW := max(width-2-ansi.StringWidth(state)-ansi.StringWidth(stats)-4, 0)
-	barW = min(barW, 40)
-	line1 := state + "  " + t.progressBar(c.done, c.total, barW) + "  " + stats
+	barW := min(max(width-2-ansi.StringWidth(status)-ansi.StringWidth(stats)-4, 0), 40)
+	line1 := status + "  " + t.progressBar(c.done, c.total, barW) + "  " + stats
 	line2 := t.dim.Render("$ ") + sanitize([]byte(snap.Command))
-	return t.box("omnivore", "", line1+"\n"+line2, width, 4, false)
+	return t.box("omnivore", "", line1+"\n"+line2, width, headerHeight, false)
 }
 
 // joinHosts lists hosts in at most width cells, ending with "… +N" if they don't all fit.
 func joinHosts(hosts []string, width int) string {
 	var b strings.Builder
+	used := 0
 	for i, h := range hosts {
 		sep := ""
 		if i > 0 {
@@ -110,11 +111,13 @@ func joinHosts(hosts []string, width int) string {
 		if rest := len(hosts) - i - 1; rest > 0 {
 			more = fmt.Sprintf(", … +%d", rest)
 		}
-		if ansi.StringWidth(b.String()+sep+h+more) > width && i > 0 {
+		w := ansi.StringWidth(sep + h)
+		if i > 0 && used+w+ansi.StringWidth(more) > width {
 			fmt.Fprintf(&b, " … +%d", len(hosts)-i)
 			return b.String()
 		}
 		b.WriteString(sep + h)
+		used += w
 	}
 	return b.String()
 }
@@ -175,12 +178,12 @@ func (t theme) renderGroups(groups []group.Group, selected, width int) (string, 
 	return strings.Join(lines, "\n"), starts
 }
 
-// renderDiff shows how g's output differs from the majority's.
-func (t theme) renderDiff(majority, g group.Group) string {
-	if slices.Equal(majority.Hosts, g.Hosts) {
+// renderDiff shows how the selected group's output differs from the first (largest) group's.
+func (t theme) renderDiff(groups []group.Group, selected int) string {
+	if selected == 0 {
 		return t.dim.Render("This is the majority group, so there is nothing to compare it with.\nSelect another group and press d.")
 	}
-	before, after := sanitize(majority.Output), sanitize(g.Output)
+	before, after := sanitize(groups[0].Output), sanitize(groups[selected].Output)
 	unified := udiff.Unified("majority", "this group", before, after)
 	if unified == "" {
 		return t.dim.Render("The outputs are identical.")
@@ -301,6 +304,19 @@ func (t theme) hostTitle(h state.Host) string {
 	return strings.Join(parts, " · ")
 }
 
+// statusLabel is a short, coloured description of a host's status.
+func (t theme) statusLabel(h state.Host) string {
+	switch {
+	case h.Status == state.Completed:
+		return t.ok.Render("✓ completed")
+	case h.Status == state.Failed:
+		return t.fail.Render("✗ failed")
+	case h.Slow:
+		return t.slow.Render("◷ slow")
+	}
+	return t.running.Render("● running")
+}
+
 // maxMatches is how many hosts the search box lists.
 const maxMatches = 8
 
@@ -341,7 +357,7 @@ func subsequence(s, sub string) bool {
 		if i < 0 {
 			return false
 		}
-		s = s[i+len(string(r)):]
+		s = s[i+utf8.RuneLen(r):]
 	}
 	return true
 }

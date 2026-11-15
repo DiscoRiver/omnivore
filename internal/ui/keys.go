@@ -9,8 +9,8 @@ type keyMap struct {
 	Open, Diff, Next, Prev, Follow, Back    key.Binding
 	Search, Filter, FilterBack, Copy, Log   key.Binding
 	Help, Quit                              key.Binding
-	// In overlays.
-	Confirm, Cancel key.Binding
+	// In overlays. The search box gets its own up/down, since j and k must be typeable there.
+	MatchUp, MatchDown, Confirm, Cancel key.Binding
 }
 
 func newKeyMap() keyMap {
@@ -37,6 +37,8 @@ func newKeyMap() keyMap {
 		Log:        b([]string{"l"}, "l", "log"),
 		Help:       b([]string{"?"}, "?", "more keys"),
 		Quit:       b([]string{"q", "ctrl+c"}, "q", "quit"),
+		MatchUp:    b([]string{"up", "ctrl+p"}, "↑", "up"),
+		MatchDown:  b([]string{"down", "ctrl+n"}, "↓", "down"),
 		Confirm:    b([]string{"y", "enter", "ctrl+c"}, "y", "quit"),
 		Cancel:     b([]string{"n", "esc"}, "n", "stay"),
 	}
@@ -57,7 +59,7 @@ func (k keyMap) help(s screen, o overlay) helpKeys {
 	global := []key.Binding{k.Search, k.Filter, k.FilterBack, k.Log, k.Help, k.Quit}
 	switch o {
 	case searchOverlay:
-		return helpKeys{short: []key.Binding{k.Up, k.Down, k.Open, k.Back}}
+		return helpKeys{short: []key.Binding{k.MatchUp, k.MatchDown, k.Open, k.Back}}
 	case logOverlay:
 		return helpKeys{short: []key.Binding{k.Up, k.Down, k.PageUp, k.PageDown, k.Log, k.Back}}
 	case quitOverlay:

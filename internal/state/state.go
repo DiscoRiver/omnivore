@@ -218,11 +218,12 @@ func (s *State) Snapshot() Snapshot {
 	return snap
 }
 
-// Names returns the names of the hosts for which keep returns true, in order.
+// Names returns the names of the hosts for which keep returns true, in order. A nil keep
+// returns every host.
 func (s Snapshot) Names(keep func(Host) bool) []string {
 	var names []string
 	for _, h := range s.Hosts {
-		if keep(h) {
+		if keep == nil || keep(h) {
 			names = append(names, h.Name)
 		}
 	}

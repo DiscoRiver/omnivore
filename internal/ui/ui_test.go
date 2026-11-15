@@ -313,3 +313,26 @@ func TestMascotMood(t *testing.T) {
 		t.Errorf("done without failures: frame %s", m2.mascotFrame)
 	}
 }
+
+// TestSearchTypesJK checks that j and k go into the search box rather than moving the selection.
+func TestSearchTypesJK(t *testing.T) {
+	m := newTestModel(t, 120, 30)
+	press(m, "/", "w", "k", "j")
+	if got := m.search.Value(); got != "wkj" {
+		t.Errorf("search text = %q, want %q", got, "wkj")
+	}
+	press(m, "esc", "/", "w")
+	m.Update(tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl})
+	if m.matchSel != 1 {
+		t.Errorf("ctrl+n: selection %d, want 1", m.matchSel)
+	}
+	if help := ansi.Strip(m.footer()); strings.Contains(help, "↑/k") {
+		t.Errorf("search help advertises k: %q", help)
+	}
+}
+
+func TestPlural(t *testing.T) {
+	if plural(1, "host") != "1 host" || plural(3, "host") != "3 hosts" || plural(0, "host") != "0 hosts" {
+		t.Error("plural")
+	}
+}
