@@ -135,14 +135,14 @@ func (s *State) MarkSlow(host string) {
 }
 
 // Finish marks host as Completed, or Failed if err is not nil, adds it to the output groups, and
-// returns its Result. It does nothing and returns nil if host has already finished.
-func (s *State) Finish(host string, err error) []byte {
-	var result []byte
+// returns its Result. It does nothing and returns false if host is unknown or already finished.
+func (s *State) Finish(host string, err error) (result []byte, ok bool) {
 	s.update(func() {
-		h, ok := s.hosts[host]
-		if !ok || h.Status != Pending {
+		h, known := s.hosts[host]
+		if !known || h.Status != Pending {
 			return
 		}
+		ok = true
 		h.Err = err
 		h.Status = Completed
 		if err != nil {
@@ -151,7 +151,7 @@ func (s *State) Finish(host string, err error) []byte {
 		result = h.Result()
 		s.groups.Add(host, result)
 	})
-	return result
+	return result, ok
 }
 
 // Close records that the run is over.

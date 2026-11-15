@@ -19,7 +19,7 @@ go install github.com/discoriver/omnivore@latest
 ```
 omnivore --hosts web1,web2,web3 -c 'uptime'
 omnivore --hosts web1,web2 -c 'df -h /' -b bastion.example.com -u deploy
-omnivore --hosts web1,web2 -c 'cat /etc/os-release' --no-ui   # print groups and exit
+omnivore --hosts web1,web2 -c 'cat /etc/os-release' --no-ui   # print groups; exit 1 if any host failed
 ```
 
 Hosts may include a port (`web1:2222`). Host keys are checked against `~/.ssh/known_hosts` unless

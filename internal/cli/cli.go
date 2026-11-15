@@ -57,7 +57,8 @@ func NewCommand() *cobra.Command {
 }
 
 // Run runs cfg.Command on cfg.Hosts, saving history under base. The results are shown in the
-// interactive UI, or written to out if cfg.NoUI is set.
+// interactive UI, or written to out if cfg.NoUI is set; then Run returns an error if any host
+// failed.
 func Run(ctx context.Context, cfg config.Config, base string, out io.Writer) error {
 	hist, err := store.New(base)
 	if err != nil {
@@ -100,7 +101,15 @@ func Run(ctx context.Context, cfg config.Config, base string, out io.Writer) err
 			<-finished
 			return ctx.Err()
 		}
-		return ui.PrintSummary(out, st.Snapshot())
+		snap := st.Snapshot()
+		if err := ui.PrintSummary(out, snap); err != nil {
+			return err
+		}
+		// Let scripts detect failures from the exit status.
+		if failed := len(snap.Names(func(h state.Host) bool { return h.Status == state.Failed })); failed > 0 {
+			return fmt.Errorf("%d of %d hosts failed", failed, len(snap.Hosts))
+		}
+		return nil
 	}
 
 	if err := ui.Run(ctx, st, logs); err != nil {

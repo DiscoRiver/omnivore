@@ -89,10 +89,25 @@ func (c Config) authMethods(log *slog.Logger) ([]ssh.AuthMethod, error) {
 		}))
 	}
 	if c.Password != "" {
-		auth = append(auth, ssh.Password(c.Password))
+		// Many servers (e.g. OpenSSH with PAM) only offer password login as keyboard-interactive.
+		auth = append(auth, ssh.Password(c.Password), ssh.KeyboardInteractive(passwordChallenge(c.Password)))
 	}
 	if len(auth) == 0 {
 		return nil, errors.New("no SSH auth available: no usable private key, SSH agent or password")
 	}
 	return auth, nil
+}
+
+// passwordChallenge answers keyboard-interactive prompts that hide their input (password
+// prompts) with password, and leaves other prompts blank.
+func passwordChallenge(password string) ssh.KeyboardInteractiveChallenge {
+	return func(_, _ string, questions []string, echos []bool) ([]string, error) {
+		answers := make([]string, len(questions))
+		for i := range questions {
+			if !echos[i] {
+				answers[i] = password
+			}
+		}
+		return answers, nil
+	}
 }

@@ -20,15 +20,18 @@ func TestLifecycle(t *testing.T) {
 		t.Fatalf("pending = %v, want sorted a, b, c", got)
 	}
 
-	if got := string(s.Finish("a", nil)); got != "up 1 day\n" {
-		t.Errorf("Finish(a) = %q", got)
+	if got, ok := s.Finish("a", nil); !ok || string(got) != "up 1 day\n" {
+		t.Errorf("Finish(a) = %q, %v", got, ok)
 	}
 	s.Finish("b", nil)
-	if got := string(s.Finish("c", errors.New("boom"))); got != "partial\n[error: boom]\n" {
+	if got, _ := s.Finish("c", errors.New("boom")); string(got) != "partial\n[error: boom]\n" {
 		t.Errorf("Finish(c) = %q", got)
 	}
-	if s.Finish("a", errors.New("again")) != nil {
+	if _, ok := s.Finish("a", errors.New("again")); ok {
 		t.Error("finishing a host twice changed it")
+	}
+	if _, ok := s.Finish("unknown", nil); ok {
+		t.Error("finished an unknown host")
 	}
 	s.Close()
 

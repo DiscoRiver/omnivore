@@ -30,7 +30,11 @@ func Run(events <-chan massh.Event, st *state.State, hist History, log *slog.Log
 			} else {
 				log.Info("host finished", "host", ev.Host)
 			}
-			result := st.Finish(ev.Host, ev.Err)
+			result, ok := st.Finish(ev.Host, ev.Err)
+			if !ok {
+				log.Warn("unexpected result for host", "host", ev.Host)
+				continue
+			}
 			if err := hist.WriteHost(ev.Host, result); err != nil {
 				log.Warn("can't save host output", "host", ev.Host, "err", err)
 			}

@@ -6,10 +6,10 @@ package store
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -56,10 +56,12 @@ func (s *Store) ReadHost(host string) ([]byte, error) {
 	return os.ReadFile(s.hostPath(host))
 }
 
+// hostPath returns the file for host. Names are escaped so that every host gets its own file
+// inside s.Dir, and can't clash with the log.
 func (s *Store) hostPath(host string) string {
-	name := strings.NewReplacer("/", "_", string(os.PathSeparator), "_").Replace(host)
+	name := url.PathEscape(host)
 	if name == "" || name == "." || name == ".." || name == LogFile {
-		name = "_" + name
+		name = "%" + name
 	}
 	return filepath.Join(s.Dir, name)
 }

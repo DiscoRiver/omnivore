@@ -124,9 +124,9 @@ func TestMassh(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// One public key method (all keys) and one password method.
-	if len(m.SSHConfig.Auth) != 2 {
-		t.Errorf("got %d auth methods, want 2", len(m.SSHConfig.Auth))
+	// One public key method (all keys), then password and keyboard-interactive.
+	if len(m.SSHConfig.Auth) != 3 {
+		t.Errorf("got %d auth methods, want 3", len(m.SSHConfig.Auth))
 	}
 	if m.SSHConfig.Timeout != 3*time.Second || m.SlowTimeout != 2*time.Second || m.Workers != 4 ||
 		m.BastionHost != "jump" || m.Jobs[0].Command != "echo hi" || m.SSHConfig.User != sshtest.User {
@@ -157,5 +157,26 @@ func TestMasshKnownHostsRequired(t *testing.T) {
 	cfg := Config{Hosts: []string{"a"}, Command: "x", Username: "u", Password: "pw"}
 	if _, err := cfg.Massh(slog.New(slog.DiscardHandler)); err == nil || !strings.Contains(err.Error(), "--insecure") {
 		t.Errorf("err = %v, want a hint about --insecure", err)
+	}
+}
+
+func TestPasswordChallenge(t *testing.T) {
+	got, err := passwordChallenge("pw")("", "", []string{"Password:", "Username:"}, []bool{false, true})
+	if err != nil || len(got) != 2 || got[0] != "pw" || got[1] != "" {
+		t.Errorf("answers = %q, %v", got, err)
+	}
+}
+
+func TestLoadCleansHosts(t *testing.T) {
+	isolate(t)
+	cfg, err := Load(parse(t, "--hosts", "a, b,,c ,", "-c", "x", "-u", "ops"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(cfg.Hosts, "|") != "a|b|c" {
+		t.Errorf("Hosts = %q", cfg.Hosts)
+	}
+	if _, err := Load(parse(t, "--hosts", " , ", "-c", "x", "-u", "ops")); err == nil {
+		t.Error("Load succeeded with only empty hosts")
 	}
 }

@@ -16,7 +16,7 @@ func TestStore(t *testing.T) {
 		t.Errorf("Dir = %s, want it under %s/history", s.Dir, base)
 	}
 
-	for _, host := range []string{"web1", "10.0.0.1:2222", "../escape", "log.txt", ".."} {
+	for _, host := range []string{"web1", "10.0.0.1:2222", "../escape", "log.txt", "..", "a/b", "a_b", "a%2Fb"} {
 		if err := s.WriteHost(host, []byte(host)); err != nil {
 			t.Fatalf("WriteHost(%q): %v", host, err)
 		}
@@ -30,8 +30,8 @@ func TestStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 5 {
-		t.Errorf("got %d files, want 5 (nothing written outside the run directory)", len(entries))
+	if len(entries) != 8 {
+		t.Errorf("got %d files, want 8 (nothing written outside the run directory)", len(entries))
 	}
 	info, err := os.Stat(filepath.Join(s.Dir, "web1"))
 	if err != nil || info.Mode().Perm() != 0o600 {

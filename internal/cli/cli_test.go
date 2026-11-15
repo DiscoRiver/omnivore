@@ -45,8 +45,8 @@ func TestRunNoUI(t *testing.T) {
 	var out bytes.Buffer
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
-	if err := Run(ctx, cfg, base, &out); err != nil {
-		t.Fatal(err)
+	if err := Run(ctx, cfg, base, &out); err == nil || err.Error() != "2 of 3 hosts failed" {
+		t.Fatalf("Run() = %v, want 2 of 3 hosts failed", err)
 	}
 
 	got := out.String()

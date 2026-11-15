@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -116,7 +117,7 @@ func Load(fs *pflag.FlagSet) (Config, error) {
 	}
 
 	c := Config{
-		Hosts:                mustStringSlice(fs, hostsFlag),
+		Hosts:                cleanHosts(mustStringSlice(fs, hostsFlag)),
 		Command:              mustString(fs, commandFlag),
 		Password:             mustString(fs, passwordFlag),
 		Insecure:             mustBool(fs, insecureFlag),
@@ -159,6 +160,17 @@ func (c Config) validate() error {
 		errs = append(errs, errors.New("timeouts can't be negative"))
 	}
 	return errors.Join(errs...)
+}
+
+// cleanHosts trims spaces and drops empty entries, so that "a, b,,c" means a, b and c.
+func cleanHosts(hosts []string) []string {
+	var out []string
+	for _, h := range hosts {
+		if h = strings.TrimSpace(h); h != "" {
+			out = append(out, h)
+		}
+	}
+	return out
 }
 
 // readConfigFile reads the config file into v. If path is empty, the default file is read if it
