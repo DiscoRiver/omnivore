@@ -8,7 +8,8 @@ import (
 	"github.com/discoriver/omnivore/internal/state"
 )
 
-// PrintSummary writes the grouped results in snap to w as plain text.
+// PrintSummary writes the grouped results in snap to w as plain text, with terminal escape
+// sequences removed from the output.
 func PrintSummary(w io.Writer, snap state.Snapshot) error {
 	count := func(s state.Status) int {
 		return len(snap.Names(func(h state.Host) bool { return h.Status == s }))
@@ -21,8 +22,10 @@ func PrintSummary(w io.Writer, snap state.Snapshot) error {
 		count(state.Completed), count(state.Failed), slow, len(snap.Groups))
 	for _, grp := range snap.Groups {
 		fmt.Fprintf(&b, "\n== %d host(s): %s\n", len(grp.Hosts), strings.Join(grp.Hosts, ", "))
-		b.Write(grp.Output)
-		if len(grp.Output) > 0 && grp.Output[len(grp.Output)-1] != '\n' {
+		// Strip terminal escape sequences; the raw output is in the history files.
+		out := sanitize(grp.Output)
+		b.WriteString(out)
+		if out != "" && !strings.HasSuffix(out, "\n") {
 			b.WriteByte('\n')
 		}
 	}

@@ -44,6 +44,18 @@ omnivore --hosts web1,web2 -c 'cat /etc/os-release' --no-ui   # print groups; ex
 
 Run `omnivore --help` for every flag.
 
+### The interface
+
+- **Groups** (the start screen) lists hosts grouped by identical output and exit status, largest
+  first, so the odd ones out are at the bottom, tagged `≠ majority`. Use `↑`/`↓` to select a group,
+  `enter` to open its first host, and `d` to see exactly how it differs from the majority.
+- **Host view** shows one host's output, live while it runs (`f` toggles following). `←`/`→` page
+  through hosts; `tab` filters them (and the host list on the left) by status.
+- `/` finds a host by name as you type, `y` copies the selected group's hosts to the clipboard,
+  `l` shows the log, `?` shows every key, and `q` quits (asking first if hosts are still running).
+- Everything scrolls (keys or mouse wheel), and the layout adapts to the terminal size and
+  light or dark backgrounds. Terminal escape sequences in remote output are stripped before display.
+
 ### Config file
 
 Settings can also be kept in `~/.omnivore/config.yaml` (or a file given with `--config`), which must
@@ -85,7 +97,9 @@ The code is layered so that each part can be tested on its own:
 | `internal/group` | Groups hosts by identical output. |
 | `internal/store` | Run history on disk. |
 | `internal/logging` | `log/slog` setup, with an in-memory buffer for the log panel. |
-| `internal/ui` | The gocui interface (a read-only view of the state) and the `--no-ui` summary. |
+| `internal/ui` | The Bubble Tea interface (a read-only view of the state) and the `--no-ui` summary. |
+| `internal/hosts` | Host lists: ranges like `web[01-20]` and host files. |
+| `internal/sshconfig` | Reads the `~/.ssh/config` settings omnivore honours. |
 
 Tests are hermetic: SSH tests use the in-process server from `github.com/discoriver/massh/v2/sshtest`,
 so no sshd, SSH keys or cloud hosts are needed.
