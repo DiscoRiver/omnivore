@@ -19,8 +19,10 @@ func Run(events <-chan massh.Event, st *state.State, hist History, log *slog.Log
 	defer st.Close()
 	for ev := range events {
 		switch ev.Kind {
-		case massh.EventStdout, massh.EventStderr:
-			st.AppendOutput(ev.Host, ev.Data)
+		case massh.EventStdout:
+			st.AppendStdout(ev.Host, ev.Data)
+		case massh.EventStderr:
+			st.AppendStderr(ev.Host, ev.Data)
 		case massh.EventSlow:
 			log.Warn("host is slow", "host", ev.Host)
 			st.MarkSlow(ev.Host)

@@ -2,18 +2,22 @@ package state
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"sync"
 	"testing"
+
+	"github.com/discoriver/massh/v2"
 )
 
 func TestLifecycle(t *testing.T) {
 	s := New("uptime", []string{"b", "a", "c", "a"})
 
-	s.AppendOutput("a", []byte("up 1 day\n"))
-	s.AppendOutput("b", []byte("up 1 day\n"))
-	s.AppendOutput("c", []byte("partial"))
+	s.AppendStdout("a", []byte("up 1 day\n"))
+	s.AppendStdout("b", []byte("up 1 day\n"))
+	s.AppendStdout("c", []byte("partial"))
 	s.MarkSlow("c")
-	s.AppendOutput("unknown", []byte("ignored"))
+	s.AppendStdout("unknown", []byte("ignored"))
 
 	snap := s.Snapshot()
 	if got := snap.Names(func(h Host) bool { return h.Status == Pending }); len(got) != 3 || got[0] != "a" {
@@ -40,7 +44,7 @@ func TestLifecycle(t *testing.T) {
 		t.Error("not done")
 	}
 	c, ok := snap.Host("c")
-	if !ok || c.Status != Failed || !c.Slow || string(c.Output) != "partial" {
+	if !ok || c.Status != Failed || !c.Slow || string(c.Stdout) != "partial" {
 		t.Errorf("host c = %+v", c)
 	}
 	if _, ok := snap.Host("zzz"); ok {
@@ -54,7 +58,7 @@ func TestLifecycle(t *testing.T) {
 func TestChangedCoalesces(t *testing.T) {
 	s := New("x", []string{"a"})
 	for range 10 {
-		s.AppendOutput("a", []byte("."))
+		s.AppendStdout("a", []byte("."))
 	}
 	<-s.Changed()
 	select {
@@ -70,7 +74,7 @@ func TestConcurrentUse(t *testing.T) {
 	for _, h := range []string{"a", "b"} {
 		wg.Go(func() {
 			for range 1000 {
-				s.AppendOutput(h, []byte("line\n"))
+				s.AppendStdout(h, []byte("line\n"))
 			}
 			s.Finish(h, nil)
 		})
@@ -79,12 +83,43 @@ func TestConcurrentUse(t *testing.T) {
 		for range 100 {
 			snap := s.Snapshot()
 			for _, h := range snap.Hosts {
-				_ = len(h.Output)
+				_ = len(h.Stdout)
 			}
 		}
 	})
 	wg.Wait()
 	if g := s.Snapshot().Groups; len(g) != 1 || len(g[0].Hosts) != 2 {
 		t.Errorf("groups = %v", g)
+	}
+}
+
+// TestResultIgnoresInterleaving checks that hosts whose stdout and stderr arrived in a different
+// order still group together.
+func TestResultIgnoresInterleaving(t *testing.T) {
+	s := New("x", []string{"a", "b", "c"})
+	s.AppendStdout("a", []byte("active\n"))
+	s.AppendStderr("a", []byte("nginx/1.27.3\n"))
+	s.AppendStderr("b", []byte("nginx/1.27.3\n"))
+	s.AppendStdout("b", []byte("active\n"))
+	s.AppendStdout("c", []byte("no newline"))
+	s.AppendStderr("c", []byte("warning"))
+	ra, _ := s.Finish("a", nil)
+	rb, _ := s.Finish("b", nil)
+	rc, _ := s.Finish("c", errors.New("boom"))
+	if string(ra) != "active\nnginx/1.27.3\n" || string(ra) != string(rb) {
+		t.Errorf("results differ: %q vs %q", ra, rb)
+	}
+	if string(rc) != "no newline\nwarning\n[error: boom]\n" {
+		t.Errorf("result c = %q", rc)
+	}
+	if g := s.Snapshot().Groups; len(g) != 2 || len(g[0].Hosts) != 2 {
+		t.Errorf("groups = %+v", g)
+	}
+}
+
+func TestDescribeNoAuth(t *testing.T) {
+	h := Host{Err: fmt.Errorf("connect: %w", massh.ErrNoAuth)}
+	if got := string(h.Result()); !strings.Contains(got, "no SSH key, agent or password") {
+		t.Errorf("Result() = %q", got)
 	}
 }

@@ -622,8 +622,13 @@ func (m *model) renderOverlay() string {
 		return t.box("Log", "", m.logView.View(), m.logView.Width()+2, m.logView.Height()+2, true)
 	case quitOverlay:
 		c := countHosts(m.snap)
-		text := fmt.Sprintf("%d hosts are still running.\nQuit and stop them?\n\n%s  %s",
-			c.running+c.slow, t.fail.Render("y  quit"), t.dim.Render("n  stay"))
+		n := c.running + c.slow
+		hosts := "hosts are"
+		if n == 1 {
+			hosts = "host is"
+		}
+		text := fmt.Sprintf("%d %s still running.\nQuit and stop them?\n\n%s  %s",
+			n, hosts, t.fail.Render("y  quit"), t.dim.Render("n  stay"))
 		return t.box("Quit?", "", text, 34, 7, true)
 	}
 	return ""

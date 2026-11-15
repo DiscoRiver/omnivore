@@ -22,14 +22,14 @@ func fixture(t *testing.T) *state.State {
 	}
 	st := state.New("systemctl is-active nginx", hosts)
 	for _, h := range hosts[:9] {
-		st.AppendOutput(h, []byte("active\n"))
+		st.AppendStdout(h, []byte("active\n"))
 		st.Finish(h, nil)
 	}
-	st.AppendOutput("web10", []byte("inactive\n"))
+	st.AppendStdout("web10", []byte("inactive\n"))
 	st.Finish("web10", errors.New("exit 3"))
-	st.AppendOutput("web11", []byte("activating\n"))
+	st.AppendStdout("web11", []byte("activating\n"))
 	st.Finish("web11", nil)
-	st.AppendOutput("web12", []byte("still going\n"))
+	st.AppendStdout("web12", []byte("still going\n"))
 	st.MarkSlow("web12")
 	return st
 }

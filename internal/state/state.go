@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/discoriver/massh/v2"
 	"github.com/discoriver/omnivore/internal/group"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -45,28 +46,41 @@ type Host struct {
 	Status Status
 	// Slow is set when the host has been quiet for longer than the command timeout.
 	Slow bool
-	// Output is everything the host has written to stdout and stderr so far.
-	Output []byte
+	// Stdout and Stderr are what the host has written so far. They are kept apart because
+	// the order in which lines from the two arrive varies from run to run.
+	Stdout []byte
+	Stderr []byte
 	// Err is why the host failed.
 	Err error
 }
 
-// Result is the host's output followed by a description of its error, if any. This is what the
-// host is grouped by.
+// Result is the host's stdout, then its stderr, then a description of its error, if any. This
+// is what hosts are grouped by, so it doesn't depend on how stdout and stderr interleaved.
 func (h Host) Result() []byte {
-	if h.Err == nil {
-		return h.Output
+	var out []byte
+	add := func(b []byte) {
+		if len(b) == 0 {
+			return
+		}
+		if len(out) > 0 && out[len(out)-1] != '\n' {
+			out = append(out, '\n')
+		}
+		out = append(out, b...)
 	}
-	out := slices.Clip(h.Output)
-	if len(out) > 0 && out[len(out)-1] != '\n' {
-		out = append(out, '\n')
+	add(h.Stdout)
+	add(h.Stderr)
+	if h.Err != nil {
+		add([]byte(describe(h.Err) + "\n"))
 	}
-	return append(out, describe(h.Err)+"\n"...)
+	return out
 }
 
 func describe(err error) string {
 	if exit, ok := errors.AsType[*ssh.ExitError](err); ok {
 		return fmt.Sprintf("[exit status %d]", exit.ExitStatus())
+	}
+	if errors.Is(err, massh.ErrNoAuth) {
+		return "[error: no SSH key, agent or password to log in with; use -k, --ask-pass, or IdentityFile in ~/.ssh/config]"
 	}
 	if keyErr, ok := errors.AsType[*knownhosts.KeyError](err); ok {
 		if len(keyErr.Want) == 0 {
@@ -122,11 +136,20 @@ func (s *State) update(f func()) {
 	}
 }
 
-// AppendOutput adds data to host's output.
-func (s *State) AppendOutput(host string, data []byte) {
+// AppendStdout adds data to host's stdout.
+func (s *State) AppendStdout(host string, data []byte) {
 	s.update(func() {
 		if h, ok := s.hosts[host]; ok {
-			h.Output = append(h.Output, data...)
+			h.Stdout = append(h.Stdout, data...)
+		}
+	})
+}
+
+// AppendStderr adds data to host's stderr.
+func (s *State) AppendStderr(host string, data []byte) {
+	s.update(func() {
+		if h, ok := s.hosts[host]; ok {
+			h.Stderr = append(h.Stderr, data...)
 		}
 	})
 }
@@ -189,7 +212,7 @@ func (s *State) Snapshot() Snapshot {
 	for i, name := range s.names {
 		h := *s.hosts[name]
 		// Output is only ever appended to, so sharing what has been written so far is safe.
-		h.Output = slices.Clip(h.Output)
+		h.Stdout, h.Stderr = slices.Clip(h.Stdout), slices.Clip(h.Stderr)
 		snap.Hosts[i] = h
 	}
 	return snap
