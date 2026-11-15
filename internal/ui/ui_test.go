@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/discoriver/omnivore/internal/group"
 	"github.com/discoriver/omnivore/internal/logging"
 	"github.com/discoriver/omnivore/internal/state"
+	"github.com/discoriver/omnivore/internal/ui/mascot"
 )
 
 // fixture is a run of 12 hosts: 9 agree, 2 differ, 1 failed and 1 still running (slow).
@@ -36,7 +38,7 @@ func fixture(t *testing.T) *state.State {
 
 func newTestModel(t *testing.T, w, h int) *model {
 	t.Helper()
-	m := newModel(fixture(t), logging.NewBuffer(10))
+	m := newModel(fixture(t), logging.NewBuffer(10), nil)
 	m.Update(tea.WindowSizeMsg{Width: w, Height: h})
 	return m
 }
@@ -243,5 +245,71 @@ func TestMajorityTagAndWrapping(t *testing.T) {
 		if ansi.StringWidth(l) > 60 {
 			t.Errorf("line wider than 60: %q", l)
 		}
+	}
+}
+
+func newMascotModel(t *testing.T, st *state.State, w, h int) *model {
+	t.Helper()
+	m := newModel(st, logging.NewBuffer(10), mascot.New(mascot.ITerm2, mascotCols, mascotRows))
+	m.Update(tea.WindowSizeMsg{Width: w, Height: h})
+	return m
+}
+
+func TestMascotLayout(t *testing.T) {
+	for _, w := range []int{140, 80, 59} {
+		m := newMascotModel(t, fixture(t), w, 30)
+		lines := strings.Split(m.View().Content, "\n")
+		if len(lines) != 30 {
+			t.Fatalf("width %d: %d lines", w, len(lines))
+		}
+		for i, l := range lines {
+			if ansi.StringWidth(l) > w {
+				t.Errorf("width %d: line %d is %d wide", w, i, ansi.StringWidth(l))
+			}
+		}
+		corner := ansi.Strip(lines[0])[:mascotCols]
+		if shown := strings.TrimSpace(corner) == ""; shown != (w >= minWidthForMascot) {
+			t.Errorf("width %d: corner %q, want it blank only when the mascot shows", w, corner)
+		}
+	}
+}
+
+func TestMascotMood(t *testing.T) {
+	st := state.New("x", []string{"a", "b", "c"})
+	m := newMascotModel(t, st, 120, 30)
+	now := time.Now()
+
+	m.animateMascot(now)
+	if m.mascotFrame != mascot.Chomp1 && m.mascotFrame != mascot.Chomp2 {
+		t.Errorf("running: frame %s, want chomping", m.mascotFrame)
+	}
+	// A failure makes it roar for a while.
+	st.Finish("a", errors.New("boom"))
+	m.refresh()
+	if cmd := m.animateMascot(now); cmd == nil || m.mascotFrame != mascot.Roar {
+		t.Errorf("after a failure: frame %s", m.mascotFrame)
+	}
+	m.animateMascot(now.Add(mascot.RoarFor + time.Second))
+	if m.mascotFrame == mascot.Roar {
+		t.Error("still roaring after the roar should have ended")
+	}
+	// Finishing with a failure leaves it puzzled.
+	st.Finish("b", nil)
+	st.Finish("c", nil)
+	st.Close()
+	m.refresh()
+	m.animateMascot(now.Add(time.Minute))
+	if m.mascotFrame != mascot.Curious1 && m.mascotFrame != mascot.Curious2 {
+		t.Errorf("done with failures: frame %s", m.mascotFrame)
+	}
+
+	// All good: happy.
+	ok := state.New("x", []string{"a"})
+	ok.Finish("a", nil)
+	ok.Close()
+	m2 := newMascotModel(t, ok, 120, 30)
+	m2.animateMascot(now)
+	if m2.mascotFrame != mascot.Happy {
+		t.Errorf("done without failures: frame %s", m2.mascotFrame)
 	}
 }

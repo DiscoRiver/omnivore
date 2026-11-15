@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"github.com/discoriver/omnivore/internal/group"
 	"github.com/discoriver/omnivore/internal/logging"
 	"github.com/discoriver/omnivore/internal/state"
+	"github.com/discoriver/omnivore/internal/ui/mascot"
 )
 
 type screen int
@@ -54,9 +56,11 @@ const (
 
 // Messages.
 type (
-	changedMsg struct{}
-	waitMsg    struct{}
-	tickMsg    time.Time
+	changedMsg      struct{}
+	waitMsg         struct{}
+	tickMsg         time.Time
+	mascotTickMsg   time.Time
+	mascotRedrawMsg time.Time
 )
 
 // waitForChange returns a command that waits for the state to change.
@@ -70,6 +74,20 @@ func waitForChange(st *state.State) tea.Cmd {
 func tick() tea.Cmd {
 	return tea.Tick(tickInterval, func(t time.Time) tea.Msg { return tickMsg(t) })
 }
+
+func mascotTick() tea.Cmd {
+	return tea.Tick(mascot.Tick, func(t time.Time) tea.Msg { return mascotTickMsg(t) })
+}
+
+// Mascot size in cells, and the narrowest terminal that shows it.
+const (
+	mascotCols         = 8
+	mascotRows         = headerHeight
+	minWidthForMascot  = 60
+	mascotRefreshTicks = 4
+	// mascotRedrawDelay gives the renderer time to paint a new screen before the image goes on it.
+	mascotRedrawDelay = 60 * time.Millisecond
+)
 
 // model is the root Bubble Tea model.
 type model struct {
@@ -105,9 +123,16 @@ type model struct {
 	logLines int
 	// status is a short message shown in the footer, such as "copied".
 	status string
+
+	// mascot is nil if the terminal can't show images.
+	mascot      *mascot.Mascot
+	mascotFrame string
+	mascotTicks int
+	roarUntil   time.Time
+	lastFailed  int
 }
 
-func newModel(st *state.State, logs *logging.Buffer) *model {
+func newModel(st *state.State, logs *logging.Buffer, bear *mascot.Mascot) *model {
 	search := textinput.New()
 	search.Placeholder = "host name"
 	search.Prompt = "> "
@@ -124,6 +149,7 @@ func newModel(st *state.State, logs *logging.Buffer) *model {
 		main:    viewport.New(),
 		logView: viewport.New(),
 		search:  search,
+		mascot:  bear,
 	}
 	m.main.MouseWheelEnabled = true
 	m.logView.MouseWheelEnabled = true
@@ -133,12 +159,17 @@ func newModel(st *state.State, logs *logging.Buffer) *model {
 }
 
 func (m *model) Init() tea.Cmd {
-	return tea.Batch(waitForChange(m.state), tick(), m.spinner.Tick, tea.RequestBackgroundColor)
+	cmds := []tea.Cmd{waitForChange(m.state), tick(), m.spinner.Tick, tea.RequestBackgroundColor}
+	if m.mascot != nil {
+		cmds = append(cmds, tea.Raw(m.mascot.Setup()), mascotTick())
+	}
+	return tea.Batch(cmds...)
 }
 
 // Run shows st until the user quits or ctx is cancelled.
 func Run(ctx context.Context, st *state.State, logs *logging.Buffer) error {
-	p := tea.NewProgram(newModel(st, logs), tea.WithContext(ctx))
+	bear := mascot.New(mascot.Detect(os.Getenv), mascotCols, mascotRows)
+	p := tea.NewProgram(newModel(st, logs, bear), tea.WithContext(ctx))
 	_, err := p.Run()
 	if errors.Is(err, tea.ErrProgramKilled) && ctx.Err() != nil {
 		return nil
@@ -302,7 +333,17 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.layout()
-		return m, nil
+		// A resize redraws the whole screen, which erases the image: draw it again once the new
+		// screen has been painted (this is also how it first appears).
+		m.mascotFrame = ""
+		return m, tea.Tick(mascotRedrawDelay, func(t time.Time) tea.Msg { return mascotRedrawMsg(t) })
+
+	case mascotRedrawMsg:
+		m.mascotFrame = ""
+		return m, m.animateMascot(time.Time(msg))
+
+	case mascotTickMsg:
+		return m, tea.Batch(m.animateMascot(time.Time(msg)), mascotTick())
 
 	case tea.BackgroundColorMsg:
 		m.theme = newTheme(msg.IsDark())
@@ -359,7 +400,7 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case quitOverlay:
 		switch {
 		case key.Matches(msg, k.Confirm):
-			return m, tea.Quit
+			return m, m.exit()
 		case key.Matches(msg, k.Cancel):
 			m.overlay = noOverlay
 		}
@@ -526,7 +567,41 @@ func (m *model) quit() (tea.Model, tea.Cmd) {
 		m.overlay = quitOverlay
 		return m, nil
 	}
-	return m, tea.Quit
+	return m, m.exit()
+}
+
+// exit removes the mascot's images and stops the program.
+func (m *model) exit() tea.Cmd {
+	if m.mascot == nil {
+		return tea.Quit
+	}
+	return tea.Sequence(tea.Raw(m.mascot.Clear()), tea.Quit)
+}
+
+// showMascot reports whether the terminal is wide enough for the mascot.
+func (m *model) showMascot() bool {
+	return m.mascot != nil && m.width >= minWidthForMascot
+}
+
+// animateMascot picks the mascot's frame for the run's state and draws it if it changed. The bear
+// chomps while hosts run, roars briefly when one fails, and is happy or puzzled at the end.
+func (m *model) animateMascot(now time.Time) tea.Cmd {
+	if !m.showMascot() {
+		return nil
+	}
+	m.mascotTicks++
+	c := countHosts(m.snap)
+	if c.failed > m.lastFailed && !m.snap.Done {
+		m.roarUntil = now.Add(mascot.RoarFor)
+	}
+	m.lastFailed = c.failed
+	frame := mascot.FrameFor(mascot.Mood{Done: m.snap.Done, Failed: c.failed, RoarUntil: m.roarUntil}, now, m.mascotTicks)
+	// Redraw now and then even if unchanged, in case a redraw erased it.
+	if frame == m.mascotFrame && m.mascotTicks%mascotRefreshTicks != 0 {
+		return nil
+	}
+	m.mascotFrame = frame
+	return tea.Raw(m.mascot.Show(frame, 1, 1))
 }
 
 func (m *model) View() tea.View {
@@ -534,7 +609,15 @@ func (m *model) View() tea.View {
 		return tea.NewView("")
 	}
 	t := m.theme
-	header := t.renderHeader(m.snap, m.width, m.spinner.View(), m.elapsed())
+	var header string
+	if m.showMascot() {
+		// Leave the top-left corner blank: the mascot image is drawn over it.
+		w := mascotCols + 1
+		blank := strings.Repeat(strings.Repeat(" ", w)+"\n", headerHeight-1) + strings.Repeat(" ", w)
+		header = lipgloss.JoinHorizontal(lipgloss.Top, blank, t.renderHeader(m.snap, m.width-w, m.spinner.View(), m.elapsed()))
+	} else {
+		header = t.renderHeader(m.snap, m.width, m.spinner.View(), m.elapsed())
+	}
 
 	var title, right string
 	switch m.screen {

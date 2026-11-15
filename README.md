@@ -55,6 +55,11 @@ Run `omnivore --help` for every flag.
   `l` shows the log, `?` shows every key, and `q` quits (asking first if hosts are still running).
 - Everything scrolls (keys or mouse wheel), and the layout adapts to the terminal size and
   light or dark backgrounds. Terminal escape sequences in remote output are stripped before display.
+- In terminals that can show images (Kitty, Ghostty, Konsole, iTerm2 and WezTerm), a bear in the
+  top-left corner keeps you company: it chomps while hosts run, roars when one fails, and is happy
+  when everything succeeds or puzzled if anything failed. Set `OMNIVORE_MASCOT=off` to hide it, or
+  `kitty`/`iterm2` to force a protocol (it's off inside tmux and screen). The frames are drawn by
+  `tools/mascot/draw.py`.
 
 ### Config file
 
