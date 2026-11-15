@@ -10,11 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/user"
 	"path/filepath"
-	"strings"
 	"time"
 
+	"github.com/discoriver/omnivore/internal/hosts"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
@@ -36,16 +35,41 @@ const (
 	DefaultWorkers    = 30
 )
 
-// PasswordEnv is the environment variable read for the SSH password when --password isn't given.
-const PasswordEnv = "OMNIVORE_PASSWORD"
+// Environment variables for secrets, which are safer than flags (visible to other users).
+const (
+	// PasswordEnv holds the SSH password when --password isn't given.
+	PasswordEnv = "OMNIVORE_PASSWORD"
+	// SudoPasswordEnv holds the sudo password for --sudo.
+	SudoPasswordEnv = "OMNIVORE_SUDO_PASSWORD"
+)
+
+// HostKeyMode says how host keys are checked.
+type HostKeyMode int
+
+const (
+	// HostKeysStrict accepts only hosts in ~/.ssh/known_hosts.
+	HostKeysStrict HostKeyMode = iota
+	// HostKeysAcceptNew also accepts, and records, hosts not seen before.
+	HostKeysAcceptNew
+	// HostKeysInsecure doesn't check host keys.
+	HostKeysInsecure
+)
 
 // Config holds omnivore's settings for one run.
 type Config struct {
+	// Hosts are the expanded hosts, from --hosts and --hosts-file.
 	Hosts       []string
 	Command     string
 	BastionHost string
-	Username    string
-	Password    string
+	// Username overrides the user from ~/.ssh/config. If empty, that user or else the current
+	// user is used.
+	Username string
+	Password string
+	// AskPass prompts for the SSH password before connecting.
+	AskPass bool
+	// Sudo runs the command with sudo, using SudoPassword (or sudo -n if it is empty).
+	Sudo         bool
+	SudoPassword string
 	// PrivateKey is the private key file to use. If empty, the usual files in ~/.ssh are tried.
 	PrivateKey           string
 	PrivateKeyPassphrase string
@@ -53,9 +77,12 @@ type Config struct {
 	// CommandTimeout flags hosts as slow when they produce no output for this long. Zero
 	// disables it.
 	CommandTimeout time.Duration
-	Workers        int
-	Insecure       bool
-	NoUI           bool
+	// KillSlow stops hosts once they are flagged slow.
+	KillSlow    bool
+	Workers     int
+	HostKeys    HostKeyMode
+	NoUI        bool
+	NoSSHConfig bool
 
 	// File is the config file that was read, or "" if none was found.
 	File string
@@ -63,12 +90,18 @@ type Config struct {
 
 // Flag names.
 const (
-	hostsFlag    = "hosts"
-	commandFlag  = "command"
-	passwordFlag = "password"
-	insecureFlag = "insecure"
-	noUIFlag     = "no-ui"
-	configFlag   = "config"
+	hostsFlag       = "hosts"
+	hostsFileFlag   = "hosts-file"
+	commandFlag     = "command"
+	passwordFlag    = "password"
+	askPassFlag     = "ask-pass"
+	sudoFlag        = "sudo"
+	insecureFlag    = "insecure"
+	acceptNewFlag   = "accept-new"
+	killSlowFlag    = "kill-slow"
+	noUIFlag        = "no-ui"
+	noSSHConfigFlag = "no-ssh-config"
+	configFlag      = "config"
 )
 
 // fileFlags maps flags to the config file keys they override.
@@ -84,17 +117,23 @@ var fileFlags = map[string]string{
 
 // RegisterFlags defines omnivore's flags on fs.
 func RegisterFlags(fs *pflag.FlagSet) {
-	fs.StringSlice(hostsFlag, nil, "Hosts to run the command on (comma separated, or repeat the flag).")
+	fs.StringSlice(hostsFlag, nil, "Hosts to run the command on (comma separated, or repeat the flag). Ranges like web[01-20] are expanded.")
+	fs.StringP(hostsFileFlag, "f", "", "File of hosts to run the command on: one or more per line, # starts a comment.")
 	fs.StringP(commandFlag, "c", "", "Command to run on every host.")
 	fs.StringP("bastion", "b", "", "Bastion (jump) host to connect through.")
 	fs.StringP("user", "u", "", "SSH user name (default: the current user).")
-	fs.StringP(passwordFlag, "p", "", "SSH password. Prefer the "+PasswordEnv+" environment variable, since flags are visible to other users.")
+	fs.StringP(passwordFlag, "p", "", "SSH password. Prefer --ask-pass or the "+PasswordEnv+" environment variable, since flags are visible to other users.")
+	fs.BoolP(askPassFlag, "P", false, "Prompt for the SSH password.")
+	fs.Bool(sudoFlag, false, "Run the command with sudo. Prompts once for the sudo password (or set "+SudoPasswordEnv+"); leave it empty for passwordless sudo.")
 	fs.StringP("key", "k", "", "Private key file (default: ~/.ssh/id_ed25519, id_ecdsa and id_rsa, if present).")
 	fs.StringP("keypass", "s", "", "Private key passphrase.")
 	fs.IntP("ssh-timeout", "t", int(DefaultSSHTimeout/time.Second), "SSH connection timeout, in seconds.")
 	fs.IntP("command-timeout", "d", 0, "Flag hosts as slow after this many seconds without output (0 to disable).")
 	fs.IntP("workers", "w", DefaultWorkers, "Number of hosts to run on at once.")
-	fs.BoolP(insecureFlag, "x", false, "Don't check host keys against ~/.ssh/known_hosts. Insecure!")
+	fs.Bool(killSlowFlag, false, "Stop hosts that are flagged slow (needs --command-timeout).")
+	fs.Bool(acceptNewFlag, false, "Accept and remember host keys of hosts not in ~/.ssh/known_hosts yet. Changed keys are still rejected.")
+	fs.BoolP(insecureFlag, "x", false, "Don't check host keys at all. Insecure!")
+	fs.Bool(noSSHConfigFlag, false, "Don't read ~/.ssh/config.")
 	fs.Bool(noUIFlag, false, "Print grouped output when every host has finished, instead of starting the interactive UI.")
 	fs.String(configFlag, "", "Config file (default: ~/.omnivore/config.yaml).")
 }
@@ -116,12 +155,38 @@ func Load(fs *pflag.FlagSet) (Config, error) {
 		return Config{}, err
 	}
 
+	patterns := mustStringSlice(fs, hostsFlag)
+	if path := mustString(fs, hostsFileFlag); path != "" {
+		fromFile, err := readHostsFile(path)
+		if err != nil {
+			return Config{}, err
+		}
+		patterns = append(patterns, fromFile...)
+	}
+	hostList, err := hosts.Expand(patterns...)
+	if err != nil {
+		return Config{}, err
+	}
+
+	hostKeys := HostKeysStrict
+	switch {
+	case mustBool(fs, insecureFlag):
+		hostKeys = HostKeysInsecure
+	case mustBool(fs, acceptNewFlag):
+		hostKeys = HostKeysAcceptNew
+	}
+
 	c := Config{
-		Hosts:                cleanHosts(mustStringSlice(fs, hostsFlag)),
+		Hosts:                hostList,
 		Command:              mustString(fs, commandFlag),
 		Password:             mustString(fs, passwordFlag),
-		Insecure:             mustBool(fs, insecureFlag),
+		AskPass:              mustBool(fs, askPassFlag),
+		Sudo:                 mustBool(fs, sudoFlag),
+		SudoPassword:         os.Getenv(SudoPasswordEnv),
+		KillSlow:             mustBool(fs, killSlowFlag),
+		HostKeys:             hostKeys,
 		NoUI:                 mustBool(fs, noUIFlag),
+		NoSSHConfig:          mustBool(fs, noSSHConfigFlag),
 		BastionHost:          v.GetString(BastionHostKey),
 		Username:             v.GetString(UsernameKey),
 		PrivateKey:           v.GetString(PrivateKeyKey),
@@ -134,24 +199,32 @@ func Load(fs *pflag.FlagSet) (Config, error) {
 	if c.Password == "" {
 		c.Password = os.Getenv(PasswordEnv)
 	}
-	if c.Username == "" {
-		if u, err := user.Current(); err == nil {
-			c.Username = u.Username
-		}
-	}
 	return c, c.validate()
+}
+
+func readHostsFile(path string) ([]string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("hosts file: %w", err)
+	}
+	defer f.Close()
+	list, err := hosts.Read(f)
+	if err != nil {
+		return nil, fmt.Errorf("hosts file %s: %w", path, err)
+	}
+	return list, nil
 }
 
 func (c Config) validate() error {
 	var errs []error
 	if len(c.Hosts) == 0 {
-		errs = append(errs, errors.New("no hosts given (use --hosts)"))
+		errs = append(errs, errors.New("no hosts given (use --hosts or --hosts-file)"))
 	}
 	if c.Command == "" {
 		errs = append(errs, errors.New("no command given (use --command)"))
 	}
-	if c.Username == "" {
-		errs = append(errs, errors.New("no user name given (use --user)"))
+	if c.KillSlow && c.CommandTimeout == 0 {
+		errs = append(errs, errors.New("--kill-slow needs --command-timeout"))
 	}
 	if c.Workers < 1 {
 		errs = append(errs, fmt.Errorf("workers must be at least 1, got %d", c.Workers))
@@ -160,17 +233,6 @@ func (c Config) validate() error {
 		errs = append(errs, errors.New("timeouts can't be negative"))
 	}
 	return errors.Join(errs...)
-}
-
-// cleanHosts trims spaces and drops empty entries, so that "a, b,,c" means a, b and c.
-func cleanHosts(hosts []string) []string {
-	var out []string
-	for _, h := range hosts {
-		if h = strings.TrimSpace(h); h != "" {
-			out = append(out, h)
-		}
-	}
-	return out
 }
 
 // readConfigFile reads the config file into v. If path is empty, the default file is read if it

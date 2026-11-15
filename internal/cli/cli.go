@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -16,6 +17,7 @@ import (
 	"github.com/discoriver/omnivore/internal/store"
 	"github.com/discoriver/omnivore/internal/ui"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 // logLines is the number of log lines kept for the UI's log panel.
@@ -43,6 +45,9 @@ func NewCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if err := promptSecrets(&cfg, cmd.ErrOrStderr()); err != nil {
+				return err
+			}
 			base, err := store.DefaultBase()
 			if err != nil {
 				return err
@@ -51,9 +56,37 @@ func NewCommand() *cobra.Command {
 		},
 	}
 	config.RegisterFlags(cmd.Flags())
-	cmd.MarkFlagRequired("hosts")
 	cmd.MarkFlagRequired("command")
 	return cmd
+}
+
+// promptSecrets asks for the passwords that cfg needs but doesn't have, on the terminal.
+func promptSecrets(cfg *config.Config, w io.Writer) error {
+	interactive := term.IsTerminal(int(os.Stdin.Fd()))
+	read := func(prompt string) (string, error) {
+		fmt.Fprint(w, prompt)
+		b, err := term.ReadPassword(int(os.Stdin.Fd()))
+		fmt.Fprintln(w)
+		return string(b), err
+	}
+	if cfg.AskPass && cfg.Password == "" {
+		if !interactive {
+			return fmt.Errorf("--ask-pass needs a terminal; set %s instead", config.PasswordEnv)
+		}
+		pw, err := read("SSH password: ")
+		if err != nil {
+			return err
+		}
+		cfg.Password = pw
+	}
+	if cfg.Sudo && cfg.SudoPassword == "" && interactive {
+		pw, err := read("sudo password (leave empty for passwordless sudo): ")
+		if err != nil {
+			return err
+		}
+		cfg.SudoPassword = pw
+	}
+	return nil
 }
 
 // Run runs cfg.Command on cfg.Hosts, saving history under base. The results are shown in the
@@ -87,7 +120,11 @@ func Run(ctx context.Context, cfg config.Config, base string, out io.Writer) err
 	if err != nil {
 		return err
 	}
-	st := state.New(cfg.Command, cfg.Hosts)
+	command := cfg.Command
+	if cfg.Sudo {
+		command = "sudo " + command
+	}
+	st := state.New(command, cfg.Hosts)
 	finished := make(chan struct{})
 	go func() {
 		runner.Run(events, st, hist, log)
@@ -106,7 +143,7 @@ func Run(ctx context.Context, cfg config.Config, base string, out io.Writer) err
 			return err
 		}
 		// Let scripts detect failures from the exit status.
-		if failed := len(snap.Names(func(h state.Host) bool { return h.Status == state.Failed })); failed > 0 {
+		if failed := saveFailed(hist, snap, out, log); failed > 0 {
 			return fmt.Errorf("%d of %d hosts failed", failed, len(snap.Hosts))
 		}
 		return nil
@@ -118,5 +155,22 @@ func Run(ctx context.Context, cfg config.Config, base string, out io.Writer) err
 	cancel()
 	<-finished
 	fmt.Fprintf(out, "Output saved in %s\n", hist.Dir)
+	saveFailed(hist, st.Snapshot(), out, log)
 	return nil
+}
+
+// saveFailed writes the failed hosts to the history, so that they can be retried with
+// --hosts-file, and returns how many there were.
+func saveFailed(hist *store.Store, snap state.Snapshot, out io.Writer, log *slog.Logger) int {
+	failed := snap.Names(func(h state.Host) bool { return h.Status == state.Failed })
+	if len(failed) == 0 {
+		return 0
+	}
+	path, err := hist.WriteHostList(store.FailedFile, failed)
+	if err != nil {
+		log.Warn("can't save failed hosts", "err", err)
+		return len(failed)
+	}
+	fmt.Fprintf(out, "%d failed hosts saved; retry them with: --hosts-file %s\n", len(failed), path)
+	return len(failed)
 }

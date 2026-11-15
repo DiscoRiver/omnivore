@@ -1,101 +1,222 @@
 package config
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
+	"os/user"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/discoriver/massh/v2"
+	"github.com/discoriver/omnivore/internal/sshconfig"
 	"golang.org/x/crypto/ssh"
 )
 
 // defaultKeys are tried, if they exist, when no private key is configured.
 var defaultKeys = []string{"~/.ssh/id_ed25519", "~/.ssh/id_ecdsa", "~/.ssh/id_rsa"}
 
-// Massh returns the massh configuration for running c.Command on c.Hosts. Problems with optional
-// auth sources are logged; it fails if no auth method is usable or host keys can't be checked.
+// knownHostsFile is checked, and added to with --accept-new.
+const knownHostsFile = "~/.ssh/known_hosts"
+
+// Massh returns the massh configuration for running c's command on c.Hosts. Unless
+// c.NoSSHConfig is set, each host's address, user, identity files and ProxyJump are taken from
+// ~/.ssh/config. Problems with optional auth sources are logged.
 func (c Config) Massh(log *slog.Logger) (*massh.Config, error) {
-	auth, err := c.authMethods(log)
-	if err != nil {
-		return nil, err
-	}
-
-	var hostKeys ssh.HostKeyCallback
-	if c.Insecure {
-		log.Warn("running in INSECURE mode: host keys are not checked")
-		hostKeys = ssh.InsecureIgnoreHostKey()
-	} else if hostKeys, err = massh.KnownHosts(); err != nil {
-		return nil, fmt.Errorf("%w (use --insecure to skip host key checks)", err)
-	}
-
-	return &massh.Config{
-		Hosts: c.Hosts,
-		Jobs:  []massh.Job{{Command: c.Command}},
-		SSHConfig: &ssh.ClientConfig{
-			User:            c.Username,
-			Auth:            auth,
-			HostKeyCallback: hostKeys,
-			Timeout:         c.SSHTimeout,
-		},
-		BastionHost: c.BastionHost,
-		Workers:     c.Workers,
-		SlowTimeout: c.CommandTimeout,
-	}, nil
-}
-
-// authMethods returns public key auth (agent and key files) and then password auth. All keys are
-// offered by a single method, because the SSH client tries each kind of method only once.
-func (c Config) authMethods(log *slog.Logger) ([]ssh.AuthMethod, error) {
-	var signers []ssh.Signer
-	if c.PrivateKey != "" {
-		s, err := massh.PrivateKeySigner(c.PrivateKey, c.PrivateKeyPassphrase)
+	defaultUser := c.Username
+	if defaultUser == "" {
+		u, err := user.Current()
 		if err != nil {
-			log.Warn("can't use private key", "file", c.PrivateKey, "err", err)
-		} else {
-			log.Info("using private key", "file", c.PrivateKey)
-			signers = append(signers, s)
+			return nil, fmt.Errorf("find current user (use --user): %w", err)
 		}
-	} else {
-		for _, f := range defaultKeys {
-			s, err := massh.PrivateKeySigner(f, c.PrivateKeyPassphrase)
-			switch {
-			case errors.Is(err, os.ErrNotExist):
-			case err != nil:
-				log.Warn("can't use private key", "file", f, "err", err)
-			default:
-				log.Info("using private key", "file", f)
-				signers = append(signers, s)
-			}
-		}
+		defaultUser = u.Username
 	}
 
-	agentSigners, err := massh.AgentSigners()
-	if err != nil {
+	a := &auth{
+		password: c.Password,
+		timeout:  c.SSHTimeout,
+		keys:     &keyring{passphrase: c.PrivateKeyPassphrase, log: log, signers: map[string]ssh.Signer{}},
+		log:      log,
+	}
+	if c.PrivateKey != "" {
+		a.base = a.keys.load(true, c.PrivateKey)
+	} else {
+		a.base = a.keys.load(false, defaultKeys...)
+	}
+	var err error
+	if a.agent, err = massh.AgentSigners(); err != nil {
 		log.Info("not using SSH agent", "err", err)
 	}
 
-	var auth []ssh.AuthMethod
-	if len(signers) > 0 || agentSigners != nil {
-		auth = append(auth, ssh.PublicKeysCallback(func() ([]ssh.Signer, error) {
-			if agentSigners == nil {
-				return signers, nil
+	switch c.HostKeys {
+	case HostKeysInsecure:
+		log.Warn("running in INSECURE mode: host keys are not checked")
+		a.hostKeys = ssh.InsecureIgnoreHostKey()
+	case HostKeysAcceptNew:
+		if a.hostKeys, err = massh.KnownHostsAcceptNew(knownHostsFile); err != nil {
+			return nil, err
+		}
+	default:
+		if a.hostKeys, err = massh.KnownHosts(knownHostsFile); err != nil {
+			return nil, fmt.Errorf("%w (use --accept-new to trust new hosts)", err)
+		}
+	}
+
+	m := &massh.Config{
+		Hosts:       c.Hosts,
+		Jobs:        []massh.Job{c.Job()},
+		SSHConfig:   a.clientConfig(defaultUser),
+		BastionHost: c.BastionHost,
+		Workers:     c.Workers,
+		SlowTimeout: c.CommandTimeout,
+		CancelSlow:  c.KillSlow,
+	}
+
+	if c.NoSSHConfig {
+		if len(m.SSHConfig.Auth) == 0 {
+			return nil, errors.New("no SSH auth available: no usable private key, SSH agent or password")
+		}
+		return m, nil
+	}
+	sc, err := sshconfig.Load()
+	if err != nil {
+		return nil, fmt.Errorf("read ssh config: %w", err)
+	}
+	m.Resolve = func(host string) (massh.HostOptions, error) {
+		name, port := splitHost(host)
+		s, err := sc.Lookup(name)
+		if err != nil {
+			return massh.HostOptions{}, err
+		}
+		opts := massh.HostOptions{
+			Addr:      net.JoinHostPort(cmp.Or(s.HostName, name), cmp.Or(port, s.Port, "22")),
+			SSHConfig: a.clientConfig(cmp.Or(c.Username, s.User, defaultUser), s.IdentityFiles...),
+		}
+		// --bastion overrides ProxyJump, like ssh -J.
+		if j := s.ProxyJump; c.BastionHost == "" && j.Host != "" {
+			opts.Bastion = net.JoinHostPort(j.Host, cmp.Or(j.Port, "22"))
+			opts.BastionSSHConfig = a.clientConfig(cmp.Or(j.User, c.Username, defaultUser), j.IdentityFiles...)
+		}
+		return opts, nil
+	}
+	return m, nil
+}
+
+// splitHost splits an optional port from host.
+func splitHost(host string) (name, port string) {
+	if h, p, err := net.SplitHostPort(host); err == nil {
+		return h, p
+	}
+	return strings.Trim(host, "[]"), ""
+}
+
+// Job returns the job to run: the command, wrapped in sudo if c.Sudo is set.
+//
+// With a sudo password, sudo reads it from stdin (-S) with no prompt, and -k makes it always
+// read it, so it never reaches the command; the command's own stdin is /dev/null. Without one,
+// sudo -n fails at once instead of waiting for a password.
+func (c Config) Job() massh.Job {
+	if !c.Sudo {
+		return massh.Job{Command: c.Command}
+	}
+	inner := shellQuote("exec </dev/null; " + c.Command)
+	if c.SudoPassword == "" {
+		return massh.Job{Command: "sudo -n -- sh -c " + inner}
+	}
+	return massh.Job{
+		Command: "sudo -k -S -p '' -- sh -c " + inner,
+		Stdin:   []byte(c.SudoPassword + "\n"),
+	}
+}
+
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// auth builds SSH client configs that share keys, the agent and the password.
+type auth struct {
+	base     []ssh.Signer
+	agent    func() ([]ssh.Signer, error)
+	password string
+	hostKeys ssh.HostKeyCallback
+	timeout  time.Duration
+	keys     *keyring
+	log      *slog.Logger
+}
+
+// clientConfig returns a client config for user that also offers the keys in identityFiles.
+func (a *auth) clientConfig(user string, identityFiles ...string) *ssh.ClientConfig {
+	return &ssh.ClientConfig{
+		User:            user,
+		Auth:            a.methods(a.keys.load(false, identityFiles...)),
+		HostKeyCallback: a.hostKeys,
+		Timeout:         a.timeout,
+	}
+}
+
+// methods returns public key auth (agent, then extra and base keys) and then password auth.
+// All keys are offered by a single method, because the SSH client tries each kind of method only
+// once.
+func (a *auth) methods(extra []ssh.Signer) []ssh.AuthMethod {
+	var methods []ssh.AuthMethod
+	files := append(extra[:len(extra):len(extra)], a.base...)
+	if len(files) > 0 || a.agent != nil {
+		methods = append(methods, ssh.PublicKeysCallback(func() ([]ssh.Signer, error) {
+			if a.agent == nil {
+				return files, nil
 			}
-			fromAgent, err := agentSigners()
+			fromAgent, err := a.agent()
 			if err != nil {
-				log.Warn("can't list SSH agent keys", "err", err)
+				a.log.Warn("can't list SSH agent keys", "err", err)
 			}
-			return append(fromAgent, signers...), nil
+			return append(fromAgent, files...), nil
 		}))
 	}
-	if c.Password != "" {
+	if a.password != "" {
 		// Many servers (e.g. OpenSSH with PAM) only offer password login as keyboard-interactive.
-		auth = append(auth, ssh.Password(c.Password), ssh.KeyboardInteractive(passwordChallenge(c.Password)))
+		methods = append(methods, ssh.Password(a.password), ssh.KeyboardInteractive(passwordChallenge(a.password)))
 	}
-	if len(auth) == 0 {
-		return nil, errors.New("no SSH auth available: no usable private key, SSH agent or password")
+	return methods
+}
+
+// keyring loads private keys once each, and is safe for concurrent use.
+type keyring struct {
+	passphrase string
+	log        *slog.Logger
+
+	mu      sync.Mutex
+	signers map[string]ssh.Signer // nil value: tried and unusable
+}
+
+// load returns the usable keys among files. Missing files are skipped silently unless required,
+// as ssh does for IdentityFile; other problems are logged once per file.
+func (k *keyring) load(required bool, files ...string) []ssh.Signer {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	var out []ssh.Signer
+	for _, f := range files {
+		s, seen := k.signers[f]
+		if !seen {
+			var err error
+			s, err = massh.PrivateKeySigner(f, k.passphrase)
+			switch {
+			case err == nil:
+				k.log.Info("using private key", "file", f)
+			case errors.Is(err, os.ErrNotExist) && !required:
+			default:
+				k.log.Warn("can't use private key", "file", f, "err", err)
+			}
+			k.signers[f] = s
+		}
+		if s != nil {
+			out = append(out, s)
+		}
 	}
-	return auth, nil
+	return out
 }
 
 // passwordChallenge answers keyboard-interactive prompts that hide their input (password

@@ -17,18 +17,32 @@ go install github.com/discoriver/omnivore@latest
 ## Usage
 
 ```
-omnivore --hosts web1,web2,web3 -c 'uptime'
+omnivore --hosts 'web[01-20]' -c 'uptime'
 omnivore --hosts web1,web2 -c 'df -h /' -b bastion.example.com -u deploy
+omnivore -f hosts.txt -c 'systemctl restart nginx' --sudo
 omnivore --hosts web1,web2 -c 'cat /etc/os-release' --no-ui   # print groups; exit 1 if any host failed
 ```
 
-Hosts may include a port (`web1:2222`). Host keys are checked against `~/.ssh/known_hosts` unless
-`--insecure` is given. Authentication uses, in order: the SSH agent (`SSH_AUTH_SOCK`), the key given
-with `-k` (or `~/.ssh/id_ed25519`, `id_ecdsa` and `id_rsa` if present), and a password from
-`OMNIVORE_PASSWORD` or `-p`. Run `omnivore --help` for every flag.
+- **Hosts** come from `--hosts` (comma separated or repeated) and `--hosts-file`/`-f` (one or more
+  per line, `#` comments). Ranges are expanded: `web[01-03,07]` is web01, web02, web03 and web07.
+  Hosts may include a port (`web1:2222`).
+- **`~/.ssh/config` is honoured**: `HostName`, `Port`, `User`, `IdentityFile` and single-hop
+  `ProxyJump`, so aliases work as they do with `ssh`. `-u`, `-b` and ports in `--hosts` take
+  precedence. `ProxyCommand` and multi-hop jumps aren't supported. Use `--no-ssh-config` to ignore it.
+- **Authentication** uses the SSH agent, then the key given with `-k` (or `~/.ssh/id_ed25519`,
+  `id_ecdsa` and `id_rsa`) plus each host's `IdentityFile`s, then a password from `--ask-pass`/`-P`,
+  `OMNIVORE_PASSWORD` or `-p`.
+- **Host keys** are checked against `~/.ssh/known_hosts`. `--accept-new` trusts and records hosts
+  seen for the first time but still rejects changed keys; `--insecure` skips checks entirely.
+- **sudo**: `--sudo` prompts once for the sudo password and sends it to every host over the SSH
+  connection (never on a command line), or set `OMNIVORE_SUDO_PASSWORD`. Leave it empty to use
+  passwordless sudo, which then fails at once instead of hanging on a prompt.
+- **Slow hosts**: `--command-timeout N` flags hosts with no output for N seconds; `--kill-slow`
+  also stops them.
+- **Retrying**: failed hosts are written to `failed.txt` in the run's history directory, and
+  omnivore prints the `--hosts-file` argument to retry them.
 
-In the interface, use the arrow keys to page through individual hosts, `s` to jump to a host, `esc`
-to go back to the grouped output, `CTRL+L` to show the log, and `CTRL+C` to quit.
+Run `omnivore --help` for every flag.
 
 ### Config file
 
@@ -49,7 +63,6 @@ omni:
 ## Upcoming features
 - Generally more interactive ability from within the program itself. Running new commands on the same host set, changing public key used etc.
 - Ability for scripts to be executed.
-- Ability to retry failed hosts a configurable number of times.
 
 ## Known Issues
 

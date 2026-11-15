@@ -10,11 +10,17 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
-// LogFile is the name of the log file in a run's directory.
-const LogFile = "log.txt"
+// Files in a run's directory besides the host outputs.
+const (
+	// LogFile is the run's log.
+	LogFile = "log.txt"
+	// FailedFile lists the hosts that failed, one per line.
+	FailedFile = "failed.txt"
+)
 
 // Store is the history directory of one run.
 type Store struct {
@@ -51,6 +57,13 @@ func (s *Store) WriteHost(host string, output []byte) error {
 	return os.WriteFile(s.hostPath(host), output, 0o600)
 }
 
+// WriteHostList writes hosts, one per line, to the named file in the run's directory, and returns
+// its path.
+func (s *Store) WriteHostList(name string, hosts []string) (string, error) {
+	path := filepath.Join(s.Dir, name)
+	return path, os.WriteFile(path, []byte(strings.Join(hosts, "\n")+"\n"), 0o600)
+}
+
 // ReadHost returns the output saved for host.
 func (s *Store) ReadHost(host string) ([]byte, error) {
 	return os.ReadFile(s.hostPath(host))
@@ -60,7 +73,7 @@ func (s *Store) ReadHost(host string) ([]byte, error) {
 // inside s.Dir, and can't clash with the log.
 func (s *Store) hostPath(host string) string {
 	name := url.PathEscape(host)
-	if name == "" || name == "." || name == ".." || name == LogFile {
+	if name == "" || name == "." || name == ".." || name == LogFile || name == FailedFile {
 		name = "%" + name
 	}
 	return filepath.Join(s.Dir, name)

@@ -51,6 +51,7 @@ func TestRunNoUI(t *testing.T) {
 
 	got := out.String()
 	for _, want := range []string{
+		"2 failed hosts saved; retry them with: --hosts-file ",
 		"Command: echo \"same everywhere\"",
 		"1 completed, 2 failed",
 		"== 1 host(s): " + srv1.Addr + "\nsame everywhere\n",
@@ -70,6 +71,10 @@ func TestRunNoUI(t *testing.T) {
 	if data, err := s.ReadHost(srv1.Addr); err != nil || string(data) != "same everywhere\n" {
 		t.Errorf("saved output = %q, %v", data, err)
 	}
+	failed, _ := os.ReadFile(filepath.Join(runs[0], store.FailedFile))
+	if want := "127.0.0.1:1\n" + srv2.Addr + "\n"; string(failed) != want && string(failed) != srv2.Addr+"\n127.0.0.1:1\n" {
+		t.Errorf("failed.txt = %q", failed)
+	}
 	logData, _ := os.ReadFile(filepath.Join(runs[0], store.LogFile))
 	if !strings.Contains(string(logData), "all hosts finished") {
 		t.Errorf("log is missing completion:\n%s", logData)
@@ -80,6 +85,7 @@ func TestCommandRequiresFlags(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	cmd := NewCommand()
 	cmd.SetArgs([]string{"--hosts", "a"})
+	cmd.SetIn(strings.NewReader(""))
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(&bytes.Buffer{})
 	if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "command") {

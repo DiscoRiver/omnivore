@@ -11,6 +11,7 @@ import (
 
 	"github.com/discoriver/omnivore/internal/group"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 // Status is where a host is in its lifecycle.
@@ -64,9 +65,14 @@ func (h Host) Result() []byte {
 }
 
 func describe(err error) string {
-	var exit *ssh.ExitError
-	if errors.As(err, &exit) {
+	if exit, ok := errors.AsType[*ssh.ExitError](err); ok {
 		return fmt.Sprintf("[exit status %d]", exit.ExitStatus())
+	}
+	if keyErr, ok := errors.AsType[*knownhosts.KeyError](err); ok {
+		if len(keyErr.Want) == 0 {
+			return "[error: host key is not in known_hosts; add it, or use --accept-new]"
+		}
+		return "[error: HOST KEY HAS CHANGED; possible man-in-the-middle attack, or the host was rebuilt]"
 	}
 	return fmt.Sprintf("[error: %v]", err)
 }
