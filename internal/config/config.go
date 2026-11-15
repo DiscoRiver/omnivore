@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -42,6 +43,16 @@ const (
 	// SudoPasswordEnv holds the sudo password for --sudo.
 	SudoPasswordEnv = "OMNIVORE_SUDO_PASSWORD"
 )
+
+// SSH clients.
+const (
+	SSHClientNative  = "native"
+	SSHClientOpenSSH = "openssh"
+	sshClientAuto    = "auto"
+)
+
+// lookPath finds the ssh client; tests replace it.
+var lookPath = exec.LookPath
 
 // HostKeyMode says how host keys are checked.
 type HostKeyMode int
@@ -77,6 +88,11 @@ type Config struct {
 	// CommandTimeout flags hosts as slow when they produce no output for this long. Zero
 	// disables it.
 	CommandTimeout time.Duration
+	// SSHClient is SSHClientOpenSSH to run the system ssh client, or SSHClientNative (the zero
+	// value) to use the Go SSH library. Load resolves --ssh=auto to one of them.
+	SSHClient string
+	// SSHPath is the ssh client found for SSHClientOpenSSH.
+	SSHPath string
 	// KillSlow stops hosts once they are flagged slow.
 	KillSlow    bool
 	Workers     int
@@ -101,6 +117,7 @@ const (
 	killSlowFlag    = "kill-slow"
 	noUIFlag        = "no-ui"
 	noSSHConfigFlag = "no-ssh-config"
+	sshFlag         = "ssh"
 	configFlag      = "config"
 )
 
@@ -134,6 +151,7 @@ func RegisterFlags(fs *pflag.FlagSet) {
 	fs.Bool(acceptNewFlag, false, "Accept and remember host keys of hosts not in ~/.ssh/known_hosts yet. Changed keys are still rejected.")
 	fs.BoolP(insecureFlag, "x", false, "Don't check host keys at all. Insecure!")
 	fs.Bool(noSSHConfigFlag, false, "Don't read ~/.ssh/config.")
+	fs.String(sshFlag, sshClientAuto, "SSH client: \"openssh\" runs your ssh (all of ~/.ssh/config, Kerberos, security keys), \"native\" uses the built-in client, \"auto\" uses ssh if it is installed.")
 	fs.Bool(noUIFlag, false, "Print grouped output when every host has finished, instead of starting the interactive UI.")
 	fs.String(configFlag, "", "Config file (default: ~/.omnivore/config.yaml).")
 }
@@ -199,7 +217,31 @@ func Load(fs *pflag.FlagSet) (Config, error) {
 	if c.Password == "" {
 		c.Password = os.Getenv(PasswordEnv)
 	}
+	if err := c.resolveSSHClient(mustString(fs, sshFlag)); err != nil {
+		return Config{}, err
+	}
 	return c, c.validate()
+}
+
+// resolveSSHClient turns the --ssh flag into SSHClient and SSHPath.
+func (c *Config) resolveSSHClient(flag string) error {
+	switch flag {
+	case SSHClientNative:
+		c.SSHClient = SSHClientNative
+	case SSHClientOpenSSH, sshClientAuto:
+		path, err := lookPath("ssh")
+		switch {
+		case err == nil:
+			c.SSHClient, c.SSHPath = SSHClientOpenSSH, path
+		case flag == SSHClientOpenSSH:
+			return fmt.Errorf("--ssh=openssh: %w", err)
+		default:
+			c.SSHClient = SSHClientNative
+		}
+	default:
+		return fmt.Errorf("--ssh must be auto, openssh or native, not %q", flag)
+	}
+	return nil
 }
 
 func readHostsFile(path string) ([]string, error) {

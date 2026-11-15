@@ -26,9 +26,17 @@ omnivore --hosts web1,web2 -c 'cat /etc/os-release' --no-ui   # print groups; ex
 - **Hosts** come from `--hosts` (comma separated or repeated) and `--hosts-file`/`-f` (one or more
   per line, `#` comments). Ranges are expanded: `web[01-03,07]` is web01, web02, web03 and web07.
   Hosts may include a port (`web1:2222`).
-- **`~/.ssh/config` is honoured**: `HostName`, `Port`, `User`, `IdentityFile` and single-hop
-  `ProxyJump`, so aliases work as they do with `ssh`. `-u`, `-b` and ports in `--hosts` take
-  precedence. `ProxyCommand` and multi-hop jumps aren't supported. Use `--no-ssh-config` to ignore it.
+- **SSH client**: by default omnivore runs your own `ssh` (`--ssh=auto`), so everything in
+  `~/.ssh/config` works as it does on the command line, including `ProxyCommand`, multi-hop
+  `ProxyJump`, `ControlMaster`, Kerberos, security keys and certificates. If `ssh` isn't
+  installed, or with `--ssh=native`, it uses its built-in client, which reads `HostName`, `Port`,
+  `User`, `IdentityFile` and single-hop `ProxyJump` from `~/.ssh/config`. Either way, `-u`, `-k`,
+  `-b` and ports in `--hosts` take precedence, and `--no-ssh-config` ignores the file.
+- **Safety with `ssh`**: since one run reaches many hosts, omnivore turns off agent, X11 and port
+  forwarding even if your config enables them, enforces its own host key mode over your config,
+  never lets `ssh` prompt (passwords are handed over privately, never in arguments or the
+  environment), keeps `OMNIVORE_PASSWORD`/`OMNIVORE_SUDO_PASSWORD` out of `ssh`'s environment, and
+  refuses host names that could be read as `ssh` options.
 - **Authentication** uses the SSH agent, then the key given with `-k` (or `~/.ssh/id_ed25519`,
   `id_ecdsa` and `id_rsa`) plus each host's `IdentityFile`s, then a password from `--ask-pass`/`-P`,
   `OMNIVORE_PASSWORD` or `-p`.

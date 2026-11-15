@@ -11,7 +11,6 @@ import (
 
 	"github.com/discoriver/massh/v2"
 	"github.com/discoriver/omnivore/internal/group"
-	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
@@ -76,8 +75,17 @@ func (h Host) Result() []byte {
 }
 
 func describe(err error) string {
-	if exit, ok := errors.AsType[*ssh.ExitError](err); ok {
-		return fmt.Sprintf("[exit status %d]", exit.ExitStatus())
+	if status, ok := massh.ExitStatus(err); ok {
+		return fmt.Sprintf("[exit status %d]", status)
+	}
+	if sshErr, ok := errors.AsType[*massh.OpenSSHError](err); ok {
+		switch {
+		case strings.Contains(sshErr.Message, "Host key verification failed"):
+			return "[ssh: host key verification failed: the host is not in known_hosts (use --accept-new), or its key has CHANGED]"
+		case strings.Contains(sshErr.Message, "Permission denied"):
+			return fmt.Sprintf("[ssh: %s; check your keys, agent or password]", strings.TrimSuffix(sshErr.Message, "."))
+		}
+		return "[" + strings.TrimPrefix(sshErr.Error(), "massh: ") + "]"
 	}
 	if errors.Is(err, massh.ErrNoAuth) {
 		return "[error: no SSH key, agent or password to log in with; use -k, --ask-pass, or IdentityFile in ~/.ssh/config]"

@@ -28,6 +28,9 @@ const knownHostsFile = "~/.ssh/known_hosts"
 // c.NoSSHConfig is set, each host's address, user, identity files and ProxyJump are taken from
 // ~/.ssh/config. Problems with optional auth sources are logged.
 func (c Config) Massh(log *slog.Logger) (*massh.Config, error) {
+	if c.SSHClient == SSHClientOpenSSH {
+		return c.masshOpenSSH(log)
+	}
 	defaultUser := c.Username
 	if defaultUser == "" {
 		u, err := user.Current()
